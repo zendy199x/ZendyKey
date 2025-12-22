@@ -1,0 +1,84 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+        
+      - name: Build (unsigned)
+        run: |
+          xcodebuild -project ZendyKey.xcodeproj \
+            -scheme ZendyKey \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+            
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -project ZendyKey.xcodeproj \
+            -scheme ZendyKey \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+            
+  build-release:
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Select Xcode  
+        run: sudo xcode-select -s /Applications/Xcode.app
+        
+      - name: Build Release (unsigned)
+        run: |
+          xcodebuild -project ZendyKey.xcodeproj \
+            -scheme ZendyKey \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+            
+      - name: Create DMG
+        run: |
+          mkdir -p release
+          APP_PATH="build/DerivedData/Build/Products/Release/ZendyKey.app"
+          if [ -d "$APP_PATH" ]; then
+            DMG_TEMP="build/dmg_temp"
+            mkdir -p "$DMG_TEMP"
+            cp -R "$APP_PATH" "$DMG_TEMP/"
+            ln -s /Applications "$DMG_TEMP/Applications"
+            hdiutil create -volname "ZendyKey" \
+              -srcfolder "$DMG_TEMP" \
+              -ov -format UDZO \
+              "release/ZendyKey-latest.dmg"
+          fi
+          
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZendyKey-DMG
+          path: release/ZendyKey-latest.dmg
+          if-no-files-found: warn
+

@@ -1,0 +1,61 @@
+# Ignore Xcode build directories
+build/
+DerivedData/
+*.xcuserdata
+
+# Release output
+Release/
+
+# macOS files
+.DS_Store
+*.swp
+*~
+
+# Environment files
+.env
+.env.local
+
+# IDE settings
+.idea/
+*.xcworkspace
+xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Provisioning profiles
+*.mobileprovision
+*.provisionprofile
+
+# Archives
+*.xcarchive
+
+# App bundles (keep Release folder clean)
+*.app
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# DMG files
+*.dmg
+
+# Temporary files
+*.tmp
+*.temp
+
+# Release notes
+.release_notes.md

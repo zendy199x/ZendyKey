@@ -1,0 +1,50 @@
+name: Update Appcast
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-appcast:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          
+      - name: Generate appcast.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Generating appcast.json from releases..."
+          
+          # Fetch releases from GitHub API
+          RELEASES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases")
+          
+          # Generate appcast.json
+          echo "$RELEASES" | jq '[.[] | select(.assets | length > 0) | {
+            version: .tag_name | ltrimstr("v"),
+            url: (.assets[] | select(.name | endswith(".dmg")) | .browser_download_url),
+            signature: null,
+            published: .published_at
+          }]' > appcast.json
+          
+          echo "Generated appcast.json:"
+          cat appcast.json
+          
+      - name: Commit and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add appcast.json
+          git commit -m "Update appcast.json from release" || echo "No changes to commit"
+          git push
