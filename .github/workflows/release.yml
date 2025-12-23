@@ -9,63 +9,134 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-macos:
     runs-on: macos-14
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Get version from tag
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Building ZendyKey version: $VERSION"
 
       - name: Build Release
         run: |
-          xcodebuild -scheme ZendyKey -configuration Release build \
+          echo "🔨 Building ZendyKey..."
+          xcodebuild -scheme ZendyKey -configuration Release \
             -derivedDataPath build/DerivedData \
-            CODE_SIGN_IDENTITY="" \
+            MACOSX_DEPLOYMENT_TARGET=12.0 \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
+          
+          echo "✅ Build completed!"
+
+      - name: Update version in app
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/ZendyKey.app"
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_PATH/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_PATH/Contents/Info.plist"
+          
+          echo "📝 Updated app version to $VERSION"
 
       - name: Create DMG
         run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
           APP_PATH="build/DerivedData/Build/Products/Release/ZendyKey.app"
-          DMG_NAME="ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg"
+          DMG_NAME="ZendyKey-${VERSION}.dmg"
           
-          # Create temporary directory for DMG content
-          mkdir -p dmg_temp
-          cp -R "$APP_PATH" dmg_temp/
-          ln -s /Applications dmg_temp/Applications
+          echo "📦 Creating DMG installer..."
+          
+          # Create temp directory
+          STAGING_DIR=$(mktemp -d)
+          
+          # Copy app
+          cp -R "$APP_PATH" "$STAGING_DIR/"
+          
+          # Remove quarantine attribute
+          xattr -cr "$STAGING_DIR/ZendyKey.app" 2>/dev/null || true
+          
+          # Create Applications symlink
+          ln -s /Applications "$STAGING_DIR/Applications"
           
           # Create DMG
           hdiutil create -volname "ZendyKey" \
-            -srcfolder dmg_temp \
+            -srcfolder "$STAGING_DIR" \
             -ov -format UDZO \
+            -imagekey zlib-level=9 \
             "$DMG_NAME"
           
           # Generate checksum
           shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
+          
+          # Clean up
+          rm -rf "$STAGING_DIR"
+          
+          echo "✅ DMG created: $DMG_NAME"
+          ls -la "$DMG_NAME"
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Get tag message
+        id: tag_message
+        run: |
+          # Fetch tag with annotation
+          git fetch origin tag ${{ github.ref_name }} --force 2>/dev/null || true
+          
+          # Get message from annotated tag
+          TAG_MSG=$(git for-each-ref --format='%(contents)' refs/tags/${{ github.ref_name }} 2>/dev/null || echo "")
+          
+          # Output for next step
+          {
+            echo "message<<EOF"
+            echo "$TAG_MSG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             ZendyKey-*.dmg
             ZendyKey-*.dmg.sha256
           body: |
-            ## ZendyKey v${{ steps.get_version.outputs.VERSION }}
+            ## 🎉 ZendyKey v${{ steps.get_version.outputs.VERSION }}
             
-            ### 📥 Cài đặt
-            1. Tải `ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg`
-            2. Mở file DMG và kéo ZendyKey vào Applications
-            3. Mở System Settings → Privacy & Security → Accessibility → Bật ZendyKey
+            ${{ steps.tag_message.outputs.message }}
             
-            ### ⚠️ Nếu không mở được
+            ---
+            
+            ### 📥 Hướng dẫn cài đặt
+            
+            1. Tải file `ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg`
+            2. Mở file DMG và kéo **ZendyKey** vào thư mục **Applications**
+            3. Mở **System Settings** → **Privacy & Security** → **Accessibility**
+            4. Bật quyền cho **ZendyKey**
+            
+            ### ⚠️ Nếu macOS báo "App cannot be opened"
+            
+            Chạy lệnh sau trong Terminal:
             ```bash
             xattr -cr /Applications/ZendyKey.app
+            ```
+            
+            Sau đó mở lại ZendyKey.
+            
+            ---
+            
+            **Checksum (SHA-256):**
+            ```
+            $(cat ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg.sha256 2>/dev/null || echo "N/A")
             ```
           draft: false
           prerelease: false

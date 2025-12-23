@@ -123,18 +123,42 @@ build_app() {
         exit 1
     fi
     
-    # Build without signing for development/personal use
-    # This allows building without Apple Developer account
-    xcodebuild \
-        -project "$XCODEPROJ" \
-        -scheme "$SCHEME" \
-        -configuration Release \
-        -derivedDataPath "$BUILD_DIR/DerivedData" \
-        MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS_VERSION" \
-        CODE_SIGN_IDENTITY="-" \
-        CODE_SIGNING_REQUIRED=NO \
-        CODE_SIGNING_ALLOWED=NO \
-        build
+    # Default: Build unsigned (like GoNhanh - no Developer Account needed)
+    # User can still sign by setting SIGNING_IDENTITY environment variable
+    if [ -n "$SIGNING_IDENTITY" ] && [ "$SIGNING_IDENTITY" != "-" ]; then
+        log_info "Using custom signing identity: $SIGNING_IDENTITY"
+        log_info "Building with code signing..."
+        
+        xcodebuild \
+            -project "$XCODEPROJ" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath "$BUILD_DIR/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS_VERSION" \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            build
+        
+        log_success "Build completed with signing"
+    else
+        log_info "Building unsigned (no Developer Account required)..."
+        log_info "User may need to run: xattr -cr /Applications/ZendyKey.app"
+        
+        # Build without signing for development/personal use (like GoNhanh)
+        xcodebuild \
+            -project "$XCODEPROJ" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath "$BUILD_DIR/DerivedData" \
+            MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS_VERSION" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+        
+        log_success "Build completed (unsigned)"
+    fi
     
     # Copy built app to build directory
     local built_app="$BUILD_DIR/DerivedData/Build/Products/Release/$PROJECT_NAME.app"
@@ -142,12 +166,14 @@ build_app() {
         cp -R "$built_app" "$APP_PATH"
         # Remove quarantine attribute to avoid "prohibited" icon overlay
         xattr -cr "$APP_PATH" 2>/dev/null || true
-        log_success "Build completed successfully (unsigned)"
+        log_success "App copied to $APP_PATH"
     else
         log_error "Built app not found at $built_app"
         exit 1
     fi
 }
+
+
 
 export_app() {
     log_step "Exporting app..."
