@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Smart Switch integration for ZKEngine
-//  Ported from OpenKey SmartSwitchKey.cpp
 //
 
 import Foundation

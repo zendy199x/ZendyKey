@@ -2,8 +2,6 @@
 //  ZKConvertTool.swift
 //  ZendyKey
 //
-//  Text conversion utilities - Ported from OpenKey ZKConvertTool.cpp
-//
 
 import Foundation
 

@@ -251,6 +251,14 @@ enum CodeTable: Int, CaseIterable, Codable {
     var requiresDoubleBackspace: Bool {
         self == .vniWindows || self == .unicodeCompound
     }
+    
+    /// Get next code table in order (for cycling via hotkey)
+    func next() -> CodeTable {
+        let allCases = CodeTable.allCases
+        guard let currentIndex = allCases.firstIndex(of: self) else { return .unicode }
+        let nextIndex = (currentIndex + 1) % allCases.count
+        return allCases[nextIndex]
+    }
 }
 
 // MARK: - Input Methods
@@ -260,13 +268,39 @@ enum InputMethod: Int, CaseIterable, Codable {
     case vni = 1
     case simpleTelex1 = 2
     case simpleTelex2 = 3
+    case viqr = 4
+    
+    /// Ordered cases for display: Telex → VNI → VIQR → Simple Telex → Simple Telex 2
+    static var orderedCases: [InputMethod] {
+        [.telex, .vni, .viqr, .simpleTelex1, .simpleTelex2]
+    }
+    
+    /// Get next input method in order (for cycling via hotkey)
+    func next() -> InputMethod {
+        let ordered = InputMethod.orderedCases
+        guard let currentIndex = ordered.firstIndex(of: self) else { return .telex }
+        let nextIndex = (currentIndex + 1) % ordered.count
+        return ordered[nextIndex]
+    }
     
     var displayName: String {
         switch self {
         case .telex: return "Telex"
         case .vni: return "VNI"
-        case .simpleTelex1: return "Simple Telex 1"
+        case .simpleTelex1: return "Simple Telex"
         case .simpleTelex2: return "Simple Telex 2"
+        case .viqr: return "VIQR"
+        }
+    }
+    
+    /// Description for UI - shows input method rules
+    var description: String {
+        switch self {
+        case .telex: return "aa→â, dd→đ, aw→ă, s/f/r/x/j→dấu"
+        case .vni: return "a6→â, d9→đ, a8→ă, 1/2/3/4/5→dấu"
+        case .simpleTelex1: return "Telex đơn giản hóa"
+        case .simpleTelex2: return "Telex đơn giản 2"
+        case .viqr: return "a^→â, a'→á, a`→à, dd→đ"
         }
     }
 }

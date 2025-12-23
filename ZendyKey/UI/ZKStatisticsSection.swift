@@ -116,13 +116,7 @@ struct ZKStatisticsSection: View {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text("\(Int(stats.wordsPerMinute))")
                                 .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color(hex: "38EF7D"), Color(hex: "11998E")],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .foregroundStyle(ZKColors.successGradient)
                                 .scaleEffect(animateSpeed ? 1.0 : 0.8)
                                 .animation(.spring(response: 0.5, dampingFraction: 0.6), value: animateSpeed)
                             
@@ -144,13 +138,7 @@ struct ZKStatisticsSection: View {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text("\(Int(stats.charsPerMinute))")
                                 .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color(hex: "667EEA"), Color(hex: "764BA2")],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .foregroundStyle(ZKColors.accentGradient)
                                 .scaleEffect(animateSpeed ? 1.0 : 0.8)
                                 .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.1), value: animateSpeed)
                             
@@ -549,13 +537,7 @@ struct ZKResetConfirmationOverlay: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.red, Color.pink],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .fill(ZKColors.dangerGradient)
                         )
                         .foregroundColor(.white)
                         .scaleEffect(isHoveringAll ? 1.02 : 1.0)

@@ -78,6 +78,8 @@ struct SendKeyStepByStepApp: Codable, Identifiable, Equatable {
 struct Preferences: Codable {
     // Hotkey settings
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
+    var inputMethodHotkey: Hotkey? = nil  // Optional: Hotkey to switch input method
+    var codeTableHotkey: Hotkey? = nil    // Optional: Hotkey to switch code table
     var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
     var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
@@ -88,6 +90,7 @@ struct Preferences: Codable {
     var codeTable: CodeTable = .unicode
     var modernStyle: Bool = false
     var spellCheckEnabled: Bool = false
+    var grammarCheckEnabled: Bool = true       // Auto-fix grammar: ưo→ươ, mark position adjustment
     var fixAutocomplete: Bool = true
     var autoRestoreEnglishEnabled: Bool = false  // Auto-restore English when foreign pattern detected
     var rememberCodeTable: Bool = true           // Remember code table between sessions

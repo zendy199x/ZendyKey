@@ -314,6 +314,18 @@ struct ZKColors {
         endPoint: .bottomTrailing
     )
     
+    static let dangerGradient = LinearGradient(
+        colors: [Color.red, Color.pink],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    
+    static let donationGradient = LinearGradient(
+        colors: [Color.orange, Color.pink],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    
     // Glass backgrounds - ADAPTIVE to light/dark mode
     static var glassBackground: Color {
         Color(nsColor: NSColor.controlBackgroundColor).opacity(0.3)
@@ -693,37 +705,44 @@ struct ZKSidebarItem: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    var namespace: Namespace.ID?
     var action: () -> Void = {}
     
     @State private var isHovered = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(isSelected ? ZKColors.accentGradient : LinearGradient(colors: [ZKColors.textSecondary], startPoint: .leading, endPoint: .trailing))
-                .frame(width: 24)
-            
-            Text(title)
-                .font(ZKTypography.body)
-                .foregroundColor(isSelected ? ZKColors.textPrimary : ZKColors.textSecondary)
-            
-            Spacer()
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(isSelected ? LinearGradient(colors: [.white], startPoint: .leading, endPoint: .trailing) : (isHovered ? ZKColors.accentGradient : LinearGradient(colors: [ZKColors.textSecondary], startPoint: .leading, endPoint: .trailing)))
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
+                
+                Spacer()
+            }
+            .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background {
+                if isSelected {
+                    ZKColors.accentGradient
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .matchedGeometryEffect(id: "SidebarSelectedIndicator", in: namespace ?? Namespace().wrappedValue)
+                } else if isHovered {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.1))
+                }
+            }
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? ZKColors.glassBackground : Color.clear))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? ZKColors.accent.opacity(0.3) : Color.clear, lineWidth: 1)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: action)
+        .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(ZKAnimations.easeOut) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
         }

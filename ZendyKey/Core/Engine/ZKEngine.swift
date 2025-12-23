@@ -2,8 +2,7 @@
 //  ZKEngine.swift
 //  ZendyKey
 //
-//  Vietnamese Input Engine - Complete rewrite based on OpenKey Engine
-//  Ported from OpenKey C++ engine to Swift with full feature parity
+//  Vietnamese Input Engine
 //
 
 import Foundation
@@ -41,6 +40,7 @@ class ZKEngine {
     var vFreeMark = 0              // 0: No, 1: Yes
     var vCodeTable = 0             // 0: Unicode, 1: TCVN3, 2: VNI-Windows
     var vCheckSpelling = 1         // 0: No, 1: Yes
+    var vGrammarCheck = 1           // 0: No, 1: Yes - Auto-fix grammar (ưo→ươ, mark adjustment)
     var vUseModernOrthography = 1  // 0: òa/úy, 1: oà/uý
     var vQuickTelex = 1            // 0: No, 1: Yes (cc=ch, gg=gi, etc.)
     var vRestoreIfWrongSpelling = 1 // 0: No, 1: Yes
@@ -2028,6 +2028,9 @@ class ZKEngine {
     
     /// Legacy function - calls both checkVowelAutoFix and checkMarkPosition
     private func checkGrammar(deltaBackSpace: Int) {
+        // Only run grammar checks if enabled
+        guard vGrammarCheck == 1 else { return }
+        
         checkVowelAutoFix(deltaBackSpace: deltaBackSpace)
         if vFreeMark == 0 {
             checkMarkPosition(deltaBackSpace: deltaBackSpace)

@@ -224,7 +224,7 @@ struct BasicSettingsTab: View {
                 // Input Method
                 GroupBox("Kiểu gõ") {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(InputMethod.allCases, id: \.self) { method in
+                        ForEach(InputMethod.orderedCases, id: \.self) { method in
                             RadioButton(
                                 title: method.displayName,
                                 isSelected: viewModel.preferences.inputMethod == method

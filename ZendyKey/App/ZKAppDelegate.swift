@@ -39,6 +39,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private var switchZendyKeyHotkeyMonitor: Any?
     private var switchZendyKeyGlobalHotkeyMonitor: Any?
     private var updaterController: SPUStandardUpdaterController?
+    private var onboardingWindow: NSWindow?
 
     // MARK: - Initialization
 
@@ -106,6 +107,10 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup global hotkey
         setupGlobalHotkey()
         
+        // Setup input method and code table hotkeys
+        setupInputMethodHotkey()
+        setupCodeTableHotkey()
+        
         // Setup read word hotkey
         setupReadWordHotkey()
 
@@ -146,22 +151,39 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func showOnboarding() {
-        let onboardingView = ZKOnboardingView {
-            // On complete callback
-            self.debugWindowController?.logEvent("✅ Onboarding completed")
+        // Observe onboarding completion notification (like GoNhanh pattern)
+        NotificationCenter.default.addObserver(
+            forName: .onboardingCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.debugWindowController?.logEvent("✅ Onboarding completed via notification")
+            
+            // Sync input method from UserDefaults.standard to ZKSharedSettings
+            let inputMethod = UserDefaults.standard.integer(forKey: "ZendyKey.inputMethod")
+            if inputMethod > 0 {
+                ZKSharedSettings.shared.inputMethod = inputMethod
+            }
+            
+            // Clear window reference (window already closed by OnboardingView)
+            self?.onboardingWindow = nil
         }
         
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Chào mừng đến với ZendyKey"
-        window.contentView = NSHostingView(rootView: onboardingView)
-        window.center()
-        window.level = .floating
-        window.makeKeyAndOrderFront(nil)
+        // Create onboarding window if not exists (like GoNhanh pattern)
+        if onboardingWindow == nil {
+            let view = ZKOnboardingView()
+            let controller = NSHostingController(rootView: view)
+            let window = NSWindow(contentViewController: controller)
+            window.title = "Chào mừng đến với ZendyKey"
+            window.styleMask = [.titled, .closable]
+            window.setContentSize(NSSize(width: 600, height: 680))
+            window.center()
+            // Do NOT set window.delegate = self here - it can cause issues when closing
+            window.isReleasedWhenClosed = false
+            onboardingWindow = window
+        }
+        
+        onboardingWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -477,6 +499,13 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Update hotkey
         setupGlobalHotkey(with: preferences.toggleHotkey)
         
+        // Update input method and code table hotkeys
+        setupInputMethodHotkey(with: preferences.inputMethodHotkey)
+        setupCodeTableHotkey(with: preferences.codeTableHotkey)
+        
+        // Rebuild menu to show updated hotkeys
+        statusBarManager?.rebuildMenu()
+        
         // Update switch ZendyKey hotkey
         setupSwitchZendyKeyHotkey(with: preferences.switchToZendyKeyHotkey)
         
@@ -542,7 +571,16 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        // Only show permission request if not granted
+        // During first launch (onboarding), don't show the alert
+        // The onboarding flow will handle permission request
+        if !hasCompletedOnboarding() {
+            debugWindowController?.logEvent("📋 Skipping permission alert - onboarding will handle it")
+            // Just start monitoring for permission changes silently
+            startPermissionMonitoring()
+            return
+        }
+        
+        // Only show permission request after onboarding is completed
         showPermissionAlert()
         // Start monitoring for permission changes
         startPermissionMonitoring()
@@ -584,31 +622,33 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func startPermissionMonitoring() {
-        // Check permission every 2 seconds
-        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        // Check permission every 1 second - CONTINUOUSLY (never stop)
+        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self,
                   let manager = self.eventTapManager else { return }
             
-            if manager.checkAccessibilityPermission() {
-                // Permission granted! Try to start event tap
+            let hasPermission = manager.checkAccessibilityPermission()
+            
+            if hasPermission && !manager.isRunning {
+                // Permission granted but event tap not running - try to start
                 self.debugWindowController?.logEvent("✅ Accessibility permission granted!")
                 
                 do {
                     try manager.start()
                     self.debugWindowController?.updateStatus("Event tap started - Ready to type!")
-                    self.debugWindowController?.logEvent("✅ Event tap started successfully after permission grant")
-                    
-                    // Stop monitoring
-                    self.permissionCheckTimer?.invalidate()
-                    self.permissionCheckTimer = nil
-                    
+                    self.debugWindowController?.logEvent("✅ Event tap started successfully")
                 } catch {
                     self.debugWindowController?.logEvent("❌ Failed to start event tap: \(error)")
                 }
+            } else if !hasPermission && manager.isRunning {
+                // Permission revoked while event tap was running - stop it
+                self.debugWindowController?.logEvent("⚠️ Accessibility permission revoked!")
+                manager.stop()
+                self.debugWindowController?.updateStatus("Permission revoked - Event tap stopped")
             }
         }
         
-        debugWindowController?.logEvent("👀 Started monitoring for permission changes")
+        debugWindowController?.logEvent("👀 Started continuous permission monitoring")
     }
 
     private func setupGlobalHotkey() {
@@ -628,6 +668,58 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         debugWindowController?.logEvent("  ✅ Toggle hotkey configured in EventTap: \(hotkey.displayString)")
+    }
+    
+    private func setupInputMethodHotkey() {
+        let preferences = ZKSharedSettings.shared.loadPreferences()
+        setupInputMethodHotkey(with: preferences.inputMethodHotkey)
+    }
+    
+    private func setupInputMethodHotkey(with hotkey: Hotkey?) {
+        eventTapManager?.inputMethodHotkey = hotkey
+        eventTapManager?.onInputMethodHotkey = { [weak self] in
+            guard let viewModel = self?.statusBarManager?.viewModel else { return }
+            
+            // Cycle to next input method in order: Telex → VNI → VIQR → Simple Telex → Simple Telex 2 → back to Telex
+            let currentMethod = viewModel.currentInputMethod
+            let newMethod = currentMethod.next()
+            viewModel.selectInputMethod(newMethod)
+            
+            self?.debugWindowController?.logEvent("🔄 Switched input method to \(newMethod.displayName) via hotkey")
+        }
+        
+        if let hotkey = hotkey {
+            debugWindowController?.logEvent("  ✅ Input method hotkey configured: \(hotkey.displayString)")
+        }
+    }
+    
+    private func setupCodeTableHotkey() {
+        let preferences = ZKSharedSettings.shared.loadPreferences()
+        setupCodeTableHotkey(with: preferences.codeTableHotkey)
+    }
+    
+    private func setupCodeTableHotkey(with hotkey: Hotkey?) {
+        eventTapManager?.codeTableHotkey = hotkey
+        eventTapManager?.onCodeTableHotkey = { [weak self] in
+            guard let viewModel = self?.statusBarManager?.viewModel else { return }
+            
+            // Cycle to next code table: Unicode → TCVN3 → VNI Windows → Unicode Compound → Vietnamese Locale CP1258 → back to Unicode
+            let currentTable = viewModel.currentCodeTable
+            let newTable = currentTable.next()
+            viewModel.selectCodeTable(newTable)
+            
+            self?.debugWindowController?.logEvent("🔄 Switched code table to \(newTable.displayName) via hotkey")
+        }
+        
+        if let hotkey = hotkey {
+            debugWindowController?.logEvent("  ✅ Code table hotkey configured: \(hotkey.displayString)")
+        }
+    }
+    
+    /// Public method to set hotkey recording state
+    /// When true, configured hotkeys are bypassed to allow recording new hotkeys
+    func setHotkeyRecordingState(_ isRecording: Bool) {
+        eventTapManager?.isRecordingHotkey = isRecording
     }
     
     private func setupReadWordHotkey() {
@@ -1165,6 +1257,31 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
                 self?.statusBarManager?.viewModel.updateStatus = .idle
                 self?.debugWindowController?.logEvent("✅ Silent update check completed")
             }
+        }
+    }
+}
+
+// MARK: - NSWindowDelegate
+
+extension ZKAppDelegate: NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // If it's the onboarding window, allow closing but cleanup first
+        if sender === onboardingWindow {
+            debugWindowController?.logEvent("📋 Onboarding window closing...")
+            // Clean up reference before closing
+            onboardingWindow = nil
+        }
+        return true
+    }
+    
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        
+        // If onboarding window is closing and onboarding not completed, handle gracefully
+        if window === onboardingWindow || (onboardingWindow == nil && !hasCompletedOnboarding()) {
+            debugWindowController?.logEvent("⚠️ Onboarding closed without completing")
+            // Clean up safely
+            onboardingWindow = nil
         }
     }
 }

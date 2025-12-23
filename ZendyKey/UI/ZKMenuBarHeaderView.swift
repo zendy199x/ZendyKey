@@ -65,11 +65,7 @@ struct ZKMenuBarHeaderView: View {
                     .shadow(color: isVietnameseEnabled ? Color.purple.opacity(0.4) : Color.clear, radius: 6)
             } else {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(LinearGradient(
-                        colors: [Color.purple, Color.blue],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .fill(ZKColors.accentGradient)
                     .frame(width: 36, height: 36)
                     .overlay(
                         Text("ZK")
@@ -122,13 +118,13 @@ struct ZKMenuBarHeaderView: View {
         ZStack {
             // Track
             Capsule()
-                .fill(isVietnameseEnabled ? gradientPurple : LinearGradient(
+                .fill(isVietnameseEnabled ? ZKColors.accentGradient : LinearGradient(
                     colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
                     startPoint: .leading,
                     endPoint: .trailing
                 ))
                 .frame(width: 48, height: 28)
-                .shadow(color: isVietnameseEnabled ? Color.purple.opacity(0.4) : Color.clear, radius: 4, x: 0, y: 2)
+                .shadow(color: isVietnameseEnabled ? ZKColors.accent.opacity(0.4) : Color.clear, radius: 4, x: 0, y: 2)
             
             // Thumb
             Circle()
@@ -153,19 +149,6 @@ struct ZKMenuBarHeaderView: View {
             
             isVietnameseEnabled.toggle()
         }
-    }
-    
-    // MARK: - Gradients
-    
-    private var gradientPurple: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(red: 0.45, green: 0.35, blue: 0.85),
-                Color(red: 0.55, green: 0.45, blue: 0.95)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
     }
 }
 

@@ -155,7 +155,7 @@ class ZKStatusBarManager: ObservableObject {
         
         // Input Method submenu
         let inputMethodMenu = NSMenu()
-        for method in InputMethod.allCases {
+        for method in InputMethod.orderedCases {
             let item = inputMethodMenu.addItem(
                 withTitle: method.displayName,
                 action: #selector(selectInputMethod(_:)),
@@ -166,13 +166,24 @@ class ZKStatusBarManager: ObservableObject {
             item.state = (method == viewModel.currentInputMethod) ? .on : .off
         }
         
+        // Build input method title with hotkey if set
+        let inputMethodTitle: String
+        if let inputMethodHotkey = prefs.inputMethodHotkey {
+            inputMethodTitle = "Kiểu gõ (\(inputMethodHotkey.displayString))"
+            log("📋 Input method hotkey found: \(inputMethodHotkey.displayString)")
+        } else {
+            inputMethodTitle = "Kiểu gõ"
+            log("📋 No input method hotkey set")
+        }
+        
         let inputMethodItem = menu.addItem(
-            withTitle: "Kiểu gõ",
+            withTitle: inputMethodTitle,
             action: nil,
             keyEquivalent: ""
         )
         inputMethodItem.submenu = inputMethodMenu
         inputMethodItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+        inputMethodItem.tag = 2 // Tag for lookup
         
         // Code Table submenu
         let codeTableMenu = NSMenu()
@@ -187,13 +198,24 @@ class ZKStatusBarManager: ObservableObject {
             item.state = (table == viewModel.currentCodeTable) ? .on : .off
         }
         
+        // Build code table title with hotkey if set
+        let codeTableTitle: String
+        if let codeTableHotkey = prefs.codeTableHotkey {
+            codeTableTitle = "Bảng mã (\(codeTableHotkey.displayString))"
+            log("📋 Code table hotkey found: \(codeTableHotkey.displayString)")
+        } else {
+            codeTableTitle = "Bảng mã"
+            log("📋 No code table hotkey set")
+        }
+        
         let codeTableItem = menu.addItem(
-            withTitle: "Bảng mã",
+            withTitle: codeTableTitle,
             action: nil,
             keyEquivalent: ""
         )
         codeTableItem.submenu = codeTableMenu
         codeTableItem.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: nil)
+        codeTableItem.tag = 3 // Tag for lookup
         
         menu.addItem(.separator())
         
@@ -293,10 +315,10 @@ class ZKStatusBarManager: ObservableObject {
             toggleItem.image = NSImage(systemSymbolName: viewModel.isVietnameseEnabled ? "checkmark.circle.fill" : "circle", accessibilityDescription: nil)
         }
         
-        // Update input method submenu
-        if let inputMethodItem = menu.item(withTitle: "Kiểu gõ"),
+        // Update input method submenu (tag 2)
+        if let inputMethodItem = menu.item(withTag: 2),
            let submenu = inputMethodItem.submenu {
-            for method in InputMethod.allCases {
+            for method in InputMethod.orderedCases {
                 if let item = submenu.item(withTag: method.rawValue) {
                     let shouldBeOn = (method == viewModel.currentInputMethod)
                     item.state = shouldBeOn ? .on : .off
@@ -304,8 +326,8 @@ class ZKStatusBarManager: ObservableObject {
             }
         }
         
-        // Update code table submenu
-        if let codeTableItem = menu.item(withTitle: "Bảng mã"),
+        // Update code table submenu (tag 3)
+        if let codeTableItem = menu.item(withTag: 3),
            let submenu = codeTableItem.submenu {
             for table in CodeTable.allCases {
                 if let item = submenu.item(withTag: table.rawValue) {
@@ -517,11 +539,11 @@ class ZKStatusBarManager: ObservableObject {
         return containerView
     }
 
-    
-    private func rebuildMenu() {
+    /// Rebuild the menu to reflect updated hotkeys and preferences
+    func rebuildMenu() {
         guard statusItem != nil else { return }
         
-        log("🔄 Rebuilding menu with new hotkey")
+        log("🔄 Rebuilding menu with updated settings")
         
         // Create new menu with updated hotkey
         let menu = createMenu()

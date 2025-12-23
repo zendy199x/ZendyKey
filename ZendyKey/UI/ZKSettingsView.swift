@@ -12,6 +12,7 @@ import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "Cơ bản"
+    case hotkeys = "Phím tắt"
     case quickTyping = "Gõ nhanh"
     case advanced = "Nâng cao"
     case inputSources = "Input Sources"
@@ -27,6 +28,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .hotkeys: return "command.square"
         case .statistics: return "chart.bar.xaxis"
         case .quickTyping: return "keyboard"
         case .advanced: return "slider.horizontal.3"
@@ -47,6 +49,7 @@ struct ZKSettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = ZKPreferencesViewModel()
     @State private var selectedSection: SettingsSection
+    @Namespace private var sidebarAnimation
 
     var onSave: ((Preferences) -> Void)?
     var onClose: (() -> Void)?
@@ -94,8 +97,9 @@ struct ZKSettingsView: View {
                                 title: section.rawValue,
                                 icon: section.icon,
                                 isSelected: selectedSection == section,
+                                namespace: sidebarAnimation,
                                 action: {
-                                    withAnimation(ZKAnimations.spring) {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                                         selectedSection = section
                                     }
                                 }
@@ -137,6 +141,8 @@ struct ZKSettingsView: View {
                     switch selectedSection {
                     case .general:
                         GeneralSettingsSection(viewModel: viewModel)
+                    case .hotkeys:
+                        HotkeysSettingsSection(viewModel: viewModel)
                     case .statistics:
                         ZKStatisticsSection()
                     case .quickTyping:
@@ -182,56 +188,14 @@ struct GeneralSettingsSection: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Hotkey
-                SettingsGroup(title: "Phím tắt") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("Bật/tắt tiếng Việt:")
-                            Spacer()
-                            ZKHotkeyRecorderView(hotkey: $viewModel.preferences.toggleHotkey)
-                                .frame(width: 150)
-                        }
-                        
-                        Toggle("Phát âm thanh khi bật/tắt", isOn: $viewModel.preferences.beepOnToggle)
-                        
-                        Divider()
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Hoàn tác gõ tiếng Việt bằng phím Esc", isOn: $viewModel.preferences.undoTypingEnabled)
-                            
-                            Text("Nhấn Esc ngay sau khi gõ để hoàn tác việc bỏ dấu (ví dụ: \"tiếng\" → \"tieesng\")")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
                 // Input Method
                 SettingsGroup(title: "Kiểu gõ") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(InputMethod.allCases, id: \.self) { method in
-                            SettingsRadioButton(
-                                title: method.displayName,
-                                isSelected: viewModel.preferences.inputMethod == method
-                            ) {
-                                viewModel.preferences.inputMethod = method
-                            }
-                        }
-                    }
+                    ZKInputMethodPicker(selection: $viewModel.preferences.inputMethod)
                 }
                 
                 // Code Table
                 SettingsGroup(title: "Bảng mã") {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        ForEach(CodeTable.allCases, id: \.self) { table in
-                            SettingsRadioButton(
-                                title: table.displayName,
-                                isSelected: viewModel.preferences.codeTable == table
-                            ) {
-                                viewModel.preferences.codeTable = table
-                            }
-                        }
-                    }
+                    ZKCodeTablePicker(selection: $viewModel.preferences.codeTable)
                 }
                 
                 // Basic Options
@@ -239,6 +203,15 @@ struct GeneralSettingsSection: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Kiểu gõ hiện đại (oà/uý)", isOn: $viewModel.preferences.modernStyle)
                         Toggle("Kiểm tra chính tả", isOn: $viewModel.preferences.spellCheckEnabled)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Kiểm tra ngữ pháp", isOn: $viewModel.preferences.grammarCheckEnabled)
+                            
+                            Text("Tự động sửa lỗi ngữ pháp: ưo→ươ, điều chỉnh vị trí dấu thanh")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
                         Toggle("Sửa lỗi tự động hoàn thành (áp dụng cho Chrome, Terminal...)", isOn: $viewModel.preferences.fixAutocomplete)
                         
                         Divider()
@@ -263,6 +236,776 @@ struct GeneralSettingsSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
+        }
+    }
+}
+
+// MARK: - Hotkeys Settings Section
+
+enum HotkeyType {
+    case toggleVietnamese
+    case inputMethod
+    case codeTable
+}
+
+struct HotkeysSettingsSection: View {
+    @ObservedObject var viewModel: ZKPreferencesViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    
+    // Single recording mode - only one row can record at a time
+    @State private var activeRecordingId: String? = nil
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Hotkey shortcuts group
+                SettingsGroup(title: "Tổ hợp phím tắt") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Toggle Vietnamese
+                        ZKUnifiedHotkeyRow(
+                            rowId: "toggle",
+                            icon: "globe",
+                            title: "Bật/Tắt tiếng Việt",
+                            hotkey: $viewModel.preferences.toggleHotkey,
+                            defaultText: "Mặc định: ⌘⇧V",
+                            activeRecordingId: $activeRecordingId,
+                            isConflict: { isHotkeyConflict($0, for: .toggleVietnamese) }
+                        )
+                        
+                        Divider()
+                        
+                        // Switch Input Method
+                        ZKUnifiedHotkeyRow(
+                            rowId: "inputMethod",
+                            icon: "keyboard",
+                            title: "Đổi kiểu gõ",
+                            hotkeyOptional: $viewModel.preferences.inputMethodHotkey,
+                            placeholder: "Chưa đặt",
+                            activeRecordingId: $activeRecordingId,
+                            isConflict: { isHotkeyConflict($0, for: .inputMethod) }
+                        )
+                        
+                        Divider()
+                        
+                        // Switch Code Table
+                        ZKUnifiedHotkeyRow(
+                            rowId: "codeTable",
+                            icon: "tablecells",
+                            title: "Đổi bảng mã",
+                            hotkeyOptional: $viewModel.preferences.codeTableHotkey,
+                            placeholder: "Chưa đặt",
+                            activeRecordingId: $activeRecordingId,
+                            isConflict: { isHotkeyConflict($0, for: .codeTable) }
+                        )
+                    }
+                }
+                
+                // Undo typing with ESC
+                SettingsGroup(title: "Phím khôi phục") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(ZKColors.accent.opacity(0.12))
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(ZKColors.accentGradient)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hoàn tác gõ tiếng Việt bằng phím Esc")
+                                    .font(ZKTypography.body)
+                                    .foregroundColor(ZKColors.textPrimary)
+                                
+                                Text("Nhấn Esc ngay sau khi gõ để hoàn tác việc bỏ dấu")
+                                    .font(ZKTypography.caption)
+                                    .foregroundColor(ZKColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $viewModel.preferences.undoTypingEnabled)
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
+                        }
+                        
+                        Text("Ví dụ: \"tiếng\" → \"tieesng\"")
+                            .font(ZKTypography.caption)
+                            .foregroundColor(ZKColors.textTertiary)
+                            .padding(.leading, 50)
+                    }
+                }
+                
+                // Sound settings
+                SettingsGroup(title: "Âm thanh") {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(ZKColors.accent.opacity(0.12))
+                                .frame(width: 36, height: 36)
+                            
+                            Image(systemName: "speaker.wave.2.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(ZKColors.accentGradient)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Phát âm thanh khi chuyển chế độ")
+                                .font(ZKTypography.body)
+                                .foregroundColor(ZKColors.textPrimary)
+                            
+                            Text("Phát beep khi bấm phím tắt")
+                                .font(ZKTypography.caption)
+                                .foregroundColor(ZKColors.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $viewModel.preferences.beepOnToggle)
+                            .toggleStyle(ZKToggleStyle())
+                            .labelsHidden()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        }
+        .onChange(of: activeRecordingId) { newValue in
+            // Notify app delegate about recording state to disable hotkeys during recording
+            ZKAppDelegate.shared?.setHotkeyRecordingState(newValue != nil)
+        }
+        .onChange(of: viewModel.preferences.inputMethodHotkey) { _ in
+            // Trigger auto-save and menu rebuild via objectWillChange
+            viewModel.objectWillChange.send()
+        }
+        .onChange(of: viewModel.preferences.codeTableHotkey) { _ in
+            // Trigger auto-save and menu rebuild via objectWillChange
+            viewModel.objectWillChange.send()
+        }
+        .onDisappear {
+            // Reset recording state when view disappears
+            ZKAppDelegate.shared?.setHotkeyRecordingState(false)
+        }
+    }
+    
+    // MARK: - Conflict Detection
+    
+    private func isHotkeyConflict(_ newHotkey: Hotkey, for type: HotkeyType) -> Bool {
+        let toggleHotkey = viewModel.preferences.toggleHotkey
+        let inputMethodHotkey = viewModel.preferences.inputMethodHotkey
+        let codeTableHotkey = viewModel.preferences.codeTableHotkey
+        
+        switch type {
+        case .toggleVietnamese:
+            // Check against input method and code table hotkeys
+            if let imHotkey = inputMethodHotkey, hotkeyEquals(newHotkey, imHotkey) {
+                return true
+            }
+            if let ctHotkey = codeTableHotkey, hotkeyEquals(newHotkey, ctHotkey) {
+                return true
+            }
+        case .inputMethod:
+            // Check against toggle and code table hotkeys
+            if hotkeyEquals(newHotkey, toggleHotkey) {
+                return true
+            }
+            if let ctHotkey = codeTableHotkey, hotkeyEquals(newHotkey, ctHotkey) {
+                return true
+            }
+        case .codeTable:
+            // Check against toggle and input method hotkeys
+            if hotkeyEquals(newHotkey, toggleHotkey) {
+                return true
+            }
+            if let imHotkey = inputMethodHotkey, hotkeyEquals(newHotkey, imHotkey) {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    private func hotkeyEquals(_ a: Hotkey, _ b: Hotkey) -> Bool {
+        return a.keyCode == b.keyCode && a.modifiers == b.modifiers
+    }
+}
+
+struct ZKUnifiedHotkeyRow: View {
+    let rowId: String
+    let icon: String
+    let title: String
+    var defaultText: String? = nil
+    var defaultHotkey: Hotkey? = nil
+    var placeholder: String = "Chưa đặt"
+    
+    // Conflict detection
+    var isConflict: ((Hotkey) -> Bool)? = nil
+    
+    // Shared recording state
+    @Binding var activeRecordingId: String?
+    
+    // Fixed width for alignment
+    private let recorderWidth: CGFloat = 120
+    private let clearButtonWidth: CGFloat = 30
+    
+    // For required hotkey
+    @Binding var hotkey: Hotkey
+    var hotkeyOptional: Binding<Hotkey?>? = nil
+    
+    // Local state
+    @State private var isHovered = false
+    @State private var showConflictWarning = false
+    @State private var conflictMessage = ""
+    
+    // Computed property for recording state
+    private var isRecording: Bool {
+        activeRecordingId == rowId
+    }
+    
+    // Initializer for required hotkey
+    init(rowId: String, icon: String, title: String, hotkey: Binding<Hotkey>, defaultText: String? = nil, defaultHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]), activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
+        self.rowId = rowId
+        self.icon = icon
+        self.title = title
+        self._hotkey = hotkey
+        self.hotkeyOptional = nil
+        self.defaultText = defaultText
+        self.defaultHotkey = defaultHotkey
+        self.placeholder = ""
+        self._activeRecordingId = activeRecordingId
+        self.isConflict = isConflict
+    }
+    
+    // Initializer for optional hotkey
+    init(rowId: String, icon: String, title: String, hotkeyOptional: Binding<Hotkey?>, placeholder: String = "Chưa đặt", activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
+        self.rowId = rowId
+        self.icon = icon
+        self.title = title
+        self._hotkey = .constant(Hotkey(keyCode: 0, modifiers: []))
+        self.hotkeyOptional = hotkeyOptional
+        self.defaultText = nil
+        self.defaultHotkey = nil
+        self.placeholder = placeholder
+        self._activeRecordingId = activeRecordingId
+        self.isConflict = isConflict
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(ZKColors.accent.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(ZKColors.accentGradient)
+                }
+                
+                // Title
+                Text(title)
+                    .font(ZKTypography.body)
+                    .foregroundColor(ZKColors.textPrimary)
+                
+                Spacer()
+                
+                // Recorder
+                Button(action: startRecording) {
+                    HStack(spacing: 8) {
+                        Image(systemName: isRecording ? "keyboard.badge.ellipsis" : "keyboard")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(isRecording ? ZKColors.accent : ZKColors.textSecondary)
+                        
+                        Text(displayText)
+                            .font(ZKTypography.body.weight(hasHotkey ? .semibold : .regular))
+                            .foregroundColor(isRecording ? ZKColors.accent : (hasHotkey ? ZKColors.textPrimary : ZKColors.textTertiary))
+                            .lineLimit(1)
+                    }
+                    .frame(width: recorderWidth, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isRecording ? ZKColors.accent.opacity(0.1) : ZKColors.glassBackground.opacity(0.5))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isRecording ? ZKColors.accent : ZKColors.glassBorder, lineWidth: 1)
+                            )
+                    )
+                    .scaleEffect(isHovered ? 1.02 : 1.0)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isHovered = hovering
+                    }
+                }
+                .background(
+                    UnifiedKeyEventHandler(
+                        isRecording: Binding(
+                            get: { isRecording },
+                            set: { newValue in
+                                if newValue {
+                                    activeRecordingId = rowId
+                                } else if activeRecordingId == rowId {
+                                    activeRecordingId = nil
+                                }
+                            }
+                        ),
+                        hotkey: hotkeyOptional != nil ? nil : $hotkey,
+                        hotkeyOptional: hotkeyOptional,
+                        onConflict: { hotkey in
+                            showConflict(for: hotkey)
+                        },
+                        isConflict: isConflict
+                    )
+                )
+                
+                // Clear button - always reserve space for alignment
+                Button(action: clearHotkey) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(shouldShowClearButton ? ZKColors.textTertiary : Color.clear)
+                        .font(.system(size: 18))
+                }
+                .buttonStyle(.plain)
+                .disabled(!shouldShowClearButton)
+                .frame(width: clearButtonWidth)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            
+            // Default text (for required hotkey like toggle Vietnamese)
+            if let defaultText = defaultText {
+                Text(defaultText)
+                    .font(ZKTypography.caption)
+                    .foregroundColor(ZKColors.textTertiary)
+                    .padding(.leading, 50)
+            }
+            
+            // Inline conflict warning
+            if showConflictWarning {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.system(size: 12))
+                    
+                    Text(conflictMessage)
+                        .font(ZKTypography.caption)
+                        .foregroundStyle(.orange)
+                }
+                .padding(.leading, 50)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: showConflictWarning)
+    }
+    
+    private func startRecording() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            activeRecordingId = rowId
+        }
+    }
+    
+    private func showConflict(for hotkey: Hotkey) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showConflictWarning = true
+            conflictMessage = "Phím tắt \(hotkey.displayString) đã được sử dụng"
+        }
+        
+        // Auto-hide after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showConflictWarning = false
+            }
+        }
+    }
+    
+    private var displayText: String {
+        if isRecording {
+            return "Nhấn phím..."
+        }
+        if let binding = hotkeyOptional {
+            if let hk = binding.wrappedValue {
+                return hk.displayString
+            }
+            return placeholder
+        }
+        return hotkey.displayString
+    }
+    
+    private var hasHotkey: Bool {
+        if let binding = hotkeyOptional {
+            return binding.wrappedValue != nil
+        }
+        return true
+    }
+    
+    private var shouldShowClearButton: Bool {
+        if let binding = hotkeyOptional {
+            return binding.wrappedValue != nil
+        }
+        // For required hotkey, show clear if not default
+        if let defaultHk = defaultHotkey {
+            return hotkey.keyCode != defaultHk.keyCode || hotkey.modifiers != defaultHk.modifiers
+        }
+        return true
+    }
+    
+    private func clearHotkey() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            // Exit recording mode first
+            if activeRecordingId == rowId {
+                activeRecordingId = nil
+            }
+            
+            if let _ = hotkeyOptional {
+                hotkeyOptional?.wrappedValue = nil
+            } else if let defaultHk = defaultHotkey {
+                // Reset to default for required hotkey
+                hotkey = defaultHk
+            }
+        }
+    }
+}
+
+// MARK: - Unified Key Event Handler
+
+struct UnifiedKeyEventHandler: NSViewRepresentable {
+    @Binding var isRecording: Bool
+    var hotkey: Binding<Hotkey>?
+    var hotkeyOptional: Binding<Hotkey?>?
+    var onConflict: ((Hotkey) -> Void)?
+    var isConflict: ((Hotkey) -> Bool)?
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = UnifiedKeyCaptureView()
+        view.onKeyPress = { keyCode, modifiers in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                // Validate: must have at least 1 modifier
+                if modifiers.isEmpty {
+                    // Single key without modifier - don't accept
+                    isRecording = false
+                    return
+                }
+                
+                let newHotkey = Hotkey(keyCode: keyCode, modifiers: modifiers, isModifierOnly: false)
+                
+                // Check for conflict before setting
+                if let isConflict = isConflict, isConflict(newHotkey) {
+                    onConflict?(newHotkey)
+                    isRecording = false
+                    return
+                }
+                
+                if let hotkeyOptional = hotkeyOptional {
+                    hotkeyOptional.wrappedValue = newHotkey
+                } else if let hotkey = hotkey {
+                    hotkey.wrappedValue = newHotkey
+                }
+                isRecording = false
+            }
+        }
+        view.onCancel = {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isRecording = false
+            }
+        }
+        DispatchQueue.main.async {
+            context.coordinator.view = view
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let keyView = nsView as? UnifiedKeyCaptureView {
+            keyView.isRecording = isRecording
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var view: UnifiedKeyCaptureView?
+    }
+}
+
+class UnifiedKeyCaptureView: NSView {
+    var onKeyPress: ((UInt16, ModifierFlags) -> Void)?
+    var onCancel: (() -> Void)?
+    var isRecording = false {
+        didSet {
+            if isRecording {
+                window?.makeFirstResponder(self)
+            }
+        }
+    }
+    
+    override var acceptsFirstResponder: Bool { true }
+    
+    override func keyDown(with event: NSEvent) {
+        guard isRecording else {
+            super.keyDown(with: event)
+            return
+        }
+        
+        // ESC to cancel
+        if event.keyCode == 53 {
+            DispatchQueue.main.async { [weak self] in
+                self?.onCancel?()
+            }
+            return
+        }
+        
+        let keyCode = UInt16(event.keyCode)
+        var modifiers = ModifierFlags()
+        
+        if event.modifierFlags.contains(.control) { modifiers.insert(.control) }
+        if event.modifierFlags.contains(.option) { modifiers.insert(.option) }
+        if event.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
+        if event.modifierFlags.contains(.command) { modifiers.insert(.command) }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.onKeyPress?(keyCode, modifiers)
+        }
+    }
+}
+
+// MARK: - Hotkey Row Component
+
+struct ZKHotkeyRow: View {
+    let icon: String
+    let title: String
+    @Binding var hotkey: Hotkey
+    var hotkeyOptional: Binding<Hotkey?>? = nil
+    var isOptional: Bool = false
+    var placeholder: String = ""
+    
+    @State private var isHovered = false
+    
+    // For required hotkey
+    init(icon: String, title: String, hotkey: Binding<Hotkey>, isOptional: Bool = false) {
+        self.icon = icon
+        self.title = title
+        self._hotkey = hotkey
+        self.hotkeyOptional = nil
+        self.isOptional = isOptional
+        self.placeholder = ""
+    }
+    
+    // For optional hotkey
+    init(icon: String, title: String, hotkeyOptional: Binding<Hotkey?>, isOptional: Bool = true, placeholder: String = "Chưa đặt") {
+        self.icon = icon
+        self.title = title
+        self._hotkey = .constant(Hotkey(keyCode: 0, modifiers: []))
+        self.hotkeyOptional = hotkeyOptional
+        self.isOptional = isOptional
+        self.placeholder = placeholder
+    }
+    
+    var body: some View {
+        HStack(spacing: 14) {
+            // Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(ZKColors.accent.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(ZKColors.accentGradient)
+            }
+            
+            // Title
+            Text(title)
+                .font(ZKTypography.body)
+                .foregroundColor(ZKColors.textPrimary)
+            
+            Spacer()
+            
+            // Hotkey display + recorder
+            if let optionalBinding = hotkeyOptional {
+                ZKOptionalHotkeyRecorderView(hotkey: optionalBinding, placeholder: placeholder)
+                    .frame(minWidth: 150)
+            } else {
+                ZKHotkeyRecorderView(hotkey: $hotkey)
+                    .frame(minWidth: 150)
+            }
+            
+            // Clear button
+            if shouldShowClearButton {
+                Button(action: clearHotkey) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(ZKColors.textTertiary)
+                        .font(.system(size: 18))
+                }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private var shouldShowClearButton: Bool {
+        if let binding = hotkeyOptional {
+            return binding.wrappedValue != nil
+        }
+        return false
+    }
+    
+    private func clearHotkey() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if hotkeyOptional != nil {
+                hotkeyOptional?.wrappedValue = nil
+            }
+        }
+    }
+}
+
+// MARK: - Optional Hotkey Recorder View
+
+struct ZKOptionalHotkeyRecorderView: View {
+    @Binding var hotkey: Hotkey?
+    var placeholder: String = "Chưa đặt"
+    
+    @State private var isRecording = false
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isRecording = true
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: isRecording ? "keyboard.badge.ellipsis" : "keyboard")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isRecording ? ZKColors.accent : ZKColors.textSecondary)
+                
+                Text(displayText)
+                    .font(ZKTypography.body.weight(hotkey != nil ? .semibold : .regular))
+                    .foregroundColor(isRecording ? ZKColors.accent : (hotkey != nil ? ZKColors.textPrimary : ZKColors.textTertiary))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isRecording ? ZKColors.accent.opacity(0.1) : ZKColors.glassBackground.opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isRecording ? ZKColors.accent : ZKColors.glassBorder, lineWidth: 1)
+                    )
+            )
+            .scaleEffect(isHovered ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .background(OptionalKeyEventHandler(isRecording: $isRecording, hotkey: $hotkey))
+    }
+    
+    private var displayText: String {
+        if isRecording {
+            return "Nhấn phím..."
+        }
+        if let hk = hotkey {
+            return hk.displayString
+        }
+        return placeholder
+    }
+}
+
+// MARK: - Optional Key Event Handler
+
+struct OptionalKeyEventHandler: NSViewRepresentable {
+    @Binding var isRecording: Bool
+    @Binding var hotkey: Hotkey?
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = OptionalKeyCaptureView()
+        view.onKeyPress = { keyCode, modifiers in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                hotkey = Hotkey(keyCode: keyCode, modifiers: modifiers, isModifierOnly: false)
+                isRecording = false
+            }
+        }
+        view.onCancel = {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isRecording = false
+            }
+        }
+        DispatchQueue.main.async {
+            context.coordinator.view = view
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let keyView = nsView as? OptionalKeyCaptureView {
+            keyView.isRecording = isRecording
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var view: OptionalKeyCaptureView?
+    }
+}
+
+class OptionalKeyCaptureView: NSView {
+    var onKeyPress: ((UInt16, ModifierFlags) -> Void)?
+    var onCancel: (() -> Void)?
+    var isRecording = false {
+        didSet {
+            if isRecording {
+                window?.makeFirstResponder(self)
+            }
+        }
+    }
+    
+    override var acceptsFirstResponder: Bool { true }
+    
+    override func keyDown(with event: NSEvent) {
+        guard isRecording else {
+            super.keyDown(with: event)
+            return
+        }
+        
+        // ESC to cancel
+        if event.keyCode == 53 {
+            DispatchQueue.main.async { [weak self] in
+                self?.onCancel?()
+            }
+            return
+        }
+        
+        let keyCode = UInt16(event.keyCode)
+        var modifiers = ModifierFlags()
+        
+        if event.modifierFlags.contains(.control) { modifiers.insert(.control) }
+        if event.modifierFlags.contains(.option) { modifiers.insert(.option) }
+        if event.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
+        if event.modifierFlags.contains(.command) { modifiers.insert(.command) }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.onKeyPress?(keyCode, modifiers)
         }
     }
 }
@@ -922,13 +1665,7 @@ struct AboutSettingsSection: View {
                         .padding(.vertical, 10)
                         .background(
                             Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.orange, Color.pink],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .fill(ZKColors.donationGradient)
                         )
                     }
                     .buttonStyle(.plain)
@@ -1388,6 +2125,173 @@ struct ZKConvertToolSection: View {
 
 // MARK: - Reusable Components
 
+// MARK: - Input Method Picker with Premium Design
+
+struct ZKInputMethodPicker: View {
+    @Binding var selection: InputMethod
+    @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var animation
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Segmented buttons
+            HStack(spacing: 0) {
+                ForEach(InputMethod.orderedCases, id: \.self) { method in
+                    ZKInputMethodButton(
+                        method: method,
+                        isSelected: selection == method,
+                        namespace: animation
+                    ) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                            selection = method
+                        }
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(ZKColors.glassBackground.opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(ZKColors.glassBorder, lineWidth: 1)
+            )
+            
+            // Dynamic description
+            Text(selection.description)
+                .font(ZKTypography.caption)
+                .foregroundColor(ZKColors.textTertiary)
+                .animation(.easeInOut(duration: 0.2), value: selection)
+        }
+    }
+}
+
+struct ZKInputMethodButton: View {
+    let method: InputMethod
+    let isSelected: Bool
+    var namespace: Namespace.ID
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            Text(method.displayName)
+                .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
+                .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+                .frame(minWidth: 80)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background {
+                    if isSelected {
+                        ZKColors.accentGradient
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .matchedGeometryEffect(id: "SelectedIndicator", in: namespace)
+                    } else if isHovered {
+                        Color.white.opacity(0.08)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+// MARK: - Code Table Picker (Modern Grid with Sliding Animation)
+
+struct ZKCodeTablePicker: View {
+    @Binding var selection: CodeTable
+    @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var animation
+    
+    // Grid layout: 2 columns
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(CodeTable.allCases, id: \.self) { table in
+                ZKCodeTableButton(
+                    table: table,
+                    isSelected: selection == table,
+                    namespace: animation
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        selection = table
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ZKCodeTableButton: View {
+    let table: CodeTable
+    let isSelected: Bool
+    var namespace: Namespace.ID
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                // Selection indicator circle
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.clear : ZKColors.textTertiary.opacity(0.5), lineWidth: 1.5)
+                        .frame(width: 18, height: 18)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(ZKColors.accentGradient)
+                            .frame(width: 18, height: 18)
+                        
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: isSelected)
+                
+                Text(table.displayName)
+                    .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
+                    .lineLimit(1)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background {
+                if isSelected {
+                    ZKColors.accentGradient
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .matchedGeometryEffect(id: "CodeTableSelectedIndicator", in: namespace)
+                } else if isHovered {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(0.08))
+                }
+            }
+            .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
 struct SettingsGroup<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
@@ -1735,13 +2639,7 @@ struct ZKSettingsResetConfirmationOverlay: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.red, Color.pink],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .fill(ZKColors.dangerGradient)
                         )
                         .foregroundColor(.white)
                         .scaleEffect(isHoveringConfirm ? 1.02 : 1.0)

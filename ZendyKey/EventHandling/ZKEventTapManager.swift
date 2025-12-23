@@ -24,11 +24,22 @@ class ZKEventTapManager {
     var toggleHotkey: Hotkey?
     var onToggleHotkey: (() -> Void)?
     
+    // Input method hotkey configuration
+    var inputMethodHotkey: Hotkey?
+    var onInputMethodHotkey: (() -> Void)?
+    
+    // Code table hotkey configuration
+    var codeTableHotkey: Hotkey?
+    var onCodeTableHotkey: (() -> Void)?
+    
     // Pause key configuration
     var pauseKeyEnabled: Bool = false
     var pauseKeyCode: UInt16 = 58  // Default: Option key
     var onPauseKeyDown: (() -> Void)?
     var onPauseKeyUp: (() -> Void)?
+    
+    // Recording mode - when true, hotkeys are bypassed to allow recording new hotkeys
+    var isRecordingHotkey: Bool = false
     
     // Note: Undo typing key is handled by ZKKeyboardEventHandler directly
     // because it needs to check engine state before deciding to consume the key
@@ -259,6 +270,15 @@ class ZKEventTapManager {
 
         // Check for toggle hotkey FIRST (before delegate processing)
         // This ensures the hotkey is consumed and doesn't reach other apps
+        // Skip hotkey processing if we're in recording mode (user is setting a new hotkey)
+        guard !isRecordingHotkey else {
+            // In recording mode, pass all events through without processing hotkeys
+            if let processedEvent = delegate?.processKeyEvent(event, type: type, proxy: proxy) {
+                return Unmanaged.passUnretained(processedEvent)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+        
         if let hotkey = toggleHotkey {
             // Handle modifier-only hotkey (e.g., Ctrl+Shift)
             if hotkey.isModifierOnly {
@@ -317,6 +337,30 @@ class ZKEventTapManager {
                         return nil
                     }
                 }
+            }
+        }
+        
+        // Check for input method hotkey
+        if let hotkey = inputMethodHotkey, type == .keyDown {
+            let eventModifiers = ModifierFlags(from: event.flags)
+            if event.keyCode == hotkey.keyCode && eventModifiers == hotkey.modifiers {
+                debugLogCallback?("  → INPUT METHOD HOTKEY DETECTED - consuming event")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onInputMethodHotkey?()
+                }
+                return nil
+            }
+        }
+        
+        // Check for code table hotkey
+        if let hotkey = codeTableHotkey, type == .keyDown {
+            let eventModifiers = ModifierFlags(from: event.flags)
+            if event.keyCode == hotkey.keyCode && eventModifiers == hotkey.modifiers {
+                debugLogCallback?("  → CODE TABLE HOTKEY DETECTED - consuming event")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onCodeTableHotkey?()
+                }
+                return nil
             }
         }
         

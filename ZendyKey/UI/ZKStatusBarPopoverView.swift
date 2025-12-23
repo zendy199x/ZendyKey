@@ -195,13 +195,7 @@ struct ZKStatusBarPopoverView: View {
                 VStack(alignment: .center, spacing: 2) {
                     Text("\(Int(ZKStatisticsManager.shared.wordsPerMinute))")
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(hex: "38EF7D"), Color(hex: "11998E")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundStyle(ZKColors.successGradient)
                     
                     Text("từ/phút")
                         .font(.system(size: 9))
@@ -216,13 +210,7 @@ struct ZKStatusBarPopoverView: View {
                 VStack(alignment: .center, spacing: 2) {
                     Text("\(Int(ZKStatisticsManager.shared.charsPerMinute))")
                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(hex: "667EEA"), Color(hex: "764BA2")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundStyle(ZKColors.accentGradient)
                     
                     Text("ký tự/phút")
                         .font(.system(size: 9))

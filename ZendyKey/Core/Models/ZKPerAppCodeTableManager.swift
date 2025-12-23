@@ -4,7 +4,6 @@
 //
 //  Manages per-application code table preferences
 //  Remembers which code table (Unicode, TCVN3, VNI, etc.) was used in each app
-//  OpenKey vRememberCode feature implementation
 //
 
 import AppKit

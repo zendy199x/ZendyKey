@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Macro integration for ZKEngine
-//  Ported from OpenKey Engine.cpp macro handling
 //
 
 import Foundation

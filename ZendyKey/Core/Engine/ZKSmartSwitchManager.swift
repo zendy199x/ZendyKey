@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Smart switch key - Remember language per app
-//  Ported from OpenKey SmartSwitchKey.cpp
 //
 
 import Foundation
