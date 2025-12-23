@@ -42,6 +42,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
 @available(macOS 13.0, *)
 struct ZKSettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var viewModel = ZKPreferencesViewModel()
     @State private var selectedSection: SettingsSection
 
@@ -116,12 +117,7 @@ struct ZKSettingsView: View {
                 .padding(.bottom, 16)
             }
             .frame(width: 200)
-            .background(
-                ZStack {
-                    Color(hex: "1a1a2e")
-                    Color.white.opacity(0.02)
-                }
-            )
+            .background(AdaptiveColors.sidebarBackgroundView(for: colorScheme))
             
             // Separator
             Rectangle()
@@ -130,12 +126,8 @@ struct ZKSettingsView: View {
             
             // Content Area
             ZStack {
-                // Background gradient
-                LinearGradient(
-                    colors: [Color(hex: "16213e"), Color(hex: "1a1a2e")],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Background gradient (adaptive)
+                AdaptiveColors.contentBackgroundGradient(for: colorScheme)
                 .ignoresSafeArea()
                 
                 // Content
@@ -166,8 +158,7 @@ struct ZKSettingsView: View {
             }
         }
         .frame(width: 850, height: 600)
-        .background(Color(hex: "1a1a2e"))
-        .preferredColorScheme(.dark)
+        .background(AdaptiveColors.surfaceBackground(for: colorScheme))
         .onReceive(viewModel.objectWillChange) { _ in
             // Auto-save when any preference changes
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -434,17 +425,47 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Debug") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Bật chế độ Debug", isOn: $viewModel.preferences.debugModeEnabled)
+                // PHTV Feature: Compatibility Settings
+                SettingsGroup(title: "Tương thích") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Sửa lỗi Chromium (Chrome/Arc/Edge)", isOn: $viewModel.preferences.fixChromiumBrowser)
+                            
+                            Text("Tự động sửa lỗi dính chữ trong thanh địa chỉ của Chrome, Arc, Edge")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                         
-                        Text("Hiển thị cửa sổ debug để theo dõi hoạt động của bộ gõ")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Tương thích layout bàn phím", isOn: $viewModel.preferences.performLayoutCompat)
+                            
+                            Text("Bật nếu bạn dùng layout bàn phím khác QWERTY")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Gửi từng phím (Send Key Step By Step)", isOn: $viewModel.preferences.sendKeyStepByStep)
+                            
+                            Text("Bật nếu một số ứng dụng không nhận được phím khi gõ nhanh")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
-                // IMKit Mode (Experimental)
+                // PHTV Feature: Per-App SendKeyStepByStep  
+                SettingsGroup(title: "Ứng dụng cần gửi từng phím") {
+                    SendKeyStepByStepAppsSettingsSection(viewModel: viewModel)
+                }
+                
+                // PHTV Feature: Pause Key Configuration
+                ZKPauseKeyConfigSection(viewModel: viewModel)
+                
+                // PHTV Feature: Restore Key Configuration  
+                ZKRestoreKeyConfigSection(viewModel: viewModel)
+                
+                // IMKit Mode (Experimental) - Placed before Debug
                 SettingsGroup(title: "Input Method Kit (Thử nghiệm)") {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -529,6 +550,17 @@ struct AdvancedSettingsSection: View {
                         }
                     }
                 }
+                
+                // Debug - At the very end
+                SettingsGroup(title: "Debug") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Bật chế độ Debug", isOn: $viewModel.preferences.debugModeEnabled)
+                        
+                        Text("Hiển thị cửa sổ debug để theo dõi hoạt động của bộ gõ")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -541,6 +573,7 @@ struct AdvancedSettingsSection: View {
 struct AppearanceSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
     @State private var hasAccessibilityPermission = AXIsProcessTrusted()
+    @State private var showResetConfirmation = false
     
     private let permissionCheckTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     
@@ -602,6 +635,46 @@ struct AppearanceSettingsSection: View {
                     }
                 }
                 
+                // Menu Bar Icon Settings (PHTV Feature)
+                SettingsGroup(title: "Icon thanh Menu") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Icon size slider
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Kích thước icon:")
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(Int(viewModel.preferences.menuBarIconSize)) px")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        Capsule()
+                                            .fill(ZKColors.accent.opacity(0.15))
+                                    )
+                            }
+                            
+                            Slider(value: $viewModel.preferences.menuBarIconSize, in: 12.0...20.0, step: 1.0)
+                            
+                            Text("Điều chỉnh kích thước icon trên thanh menu (12-20 pixels)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Divider()
+                        
+                        // Vietnamese menubar icon toggle
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Hiển thị icon chữ V khi ở chế độ tiếng Việt", isOn: $viewModel.preferences.useVietnameseMenubarIcon)
+                            
+                            Text("Khi bật, icon sẽ chuyển thành chữ V khi đang ở chế độ tiếng Việt")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
                 SettingsGroup(title: "Dock") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Hiển thị biểu tượng trên thanh Dock", isOn: $viewModel.preferences.showDockIcon)
@@ -615,12 +688,62 @@ struct AppearanceSettingsSection: View {
                 SettingsGroup(title: "Khởi động") {
                     Toggle("Khởi động cùng hệ thống", isOn: $viewModel.preferences.startAtLogin)
                 }
+                
+                // Beep Volume Slider (PHTV Feature)
+                if viewModel.preferences.beepOnToggle {
+                    SettingsGroup(title: "Âm lượng") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Âm lượng:")
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(Int(viewModel.preferences.beepVolume * 100))%")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $viewModel.preferences.beepVolume, in: 0.0...1.0, step: 0.1)
+                            
+                            Text("Điều chỉnh âm lượng khi chuyển ngôn ngữ")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // Reset to Defaults (PHTV Feature)
+                SettingsGroup(title: "Khôi phục mặc định") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Đặt lại tất cả cài đặt về mặc định. Dữ liệu macro sẽ được giữ nguyên.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            showResetConfirmation = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Khôi phục mặc định")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
         .onReceive(permissionCheckTimer) { _ in
             hasAccessibilityPermission = AXIsProcessTrusted()
+        }
+        .alert("Khôi phục mặc định?", isPresented: $showResetConfirmation) {
+            Button("Hủy", role: .cancel) { }
+            Button("Khôi phục", role: .destructive) {
+                resetToDefaults()
+            }
+        } message: {
+            Text("Tất cả cài đặt sẽ được đặt lại về mặc định. Dữ liệu macro sẽ được giữ nguyên. Hành động này không thể hoàn tác.")
         }
     }
     
@@ -629,89 +752,171 @@ struct AppearanceSettingsSection: View {
             NSWorkspace.shared.open(url)
         }
     }
+    
+    private func resetToDefaults() {
+        // Create a new default preferences object but preserve macros
+        var defaultPrefs = Preferences()
+        // Keep the current macros
+        defaultPrefs.excludedApps = []  // Clear excluded apps
+        defaultPrefs.sendKeyStepByStepApps = []  // Clear step-by-step apps
+        
+        // Apply default preferences
+        viewModel.preferences = defaultPrefs
+        viewModel.save()
+    }
 }
 
 // MARK: - About Settings Section
 
 struct AboutSettingsSection: View {
     @State private var showDonationDialog = false
+    @State private var versionBounce = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // App Logo
-                if let logo = NSImage(named: "ZendyKeyLogo") {
-                    Image(nsImage: logo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 80, height: 80)
-                        .padding(.top, 20)
-                } else {
-                    Image(systemName: "keyboard.badge.ellipsis")
-                        .font(.system(size: 50))
-                        .foregroundColor(.accentColor)
-                        .padding(.top, 20)
+            VStack(spacing: 20) {
+                // App Logo with Glass Effect (macOS 26+ style)
+                VStack(spacing: 16) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        ZKColors.accent.opacity(0.15),
+                                        ZKColors.accent.opacity(0.08)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 100, height: 100)
+                        
+                        if let logo = NSImage(named: "ZendyKeyLogo") {
+                            Image(nsImage: logo)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                        } else {
+                            Image(systemName: "keyboard.badge.ellipsis")
+                                .font(.system(size: 40))
+                                .foregroundColor(ZKColors.accent)
+                        }
+                    }
+                    
+                    // App Name
+                    VStack(spacing: 6) {
+                        Text("ZendyKey")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundColor(ZKColors.textPrimary)
+                        
+                        Text("Vietnamese Input Method for macOS")
+                            .font(ZKTypography.body)
+                            .foregroundColor(ZKColors.textSecondary)
+                    }
+                    
+                    // Version Badge with animation
+                    HStack(spacing: 8) {
+                        Text("Phiên bản")
+                            .font(ZKTypography.caption)
+                            .foregroundColor(ZKColors.textTertiary)
+                        
+                        Text("v\(ZKAppVersion.current)")
+                            .font(.system(.caption, design: .monospaced))
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(ZKColors.accent.opacity(0.15))
+                            )
+                            .foregroundColor(ZKColors.accent)
+                            .scaleEffect(versionBounce ? 1.05 : 1.0)
+                    }
                 }
-                
-                // App Name & Version
-                VStack(spacing: 4) {
-                    Text("ZendyKey")
-                        .font(.system(size: 24, weight: .bold))
-                    
-                    Text("Vietnamese Input Method for macOS")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Version \(ZKAppVersion.current)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 2)
+                .padding(.top, 20)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.5).delay(0.3)) {
+                        versionBounce = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            versionBounce = false
+                        }
+                    }
                 }
                 
                 Divider()
-                    .padding(.horizontal, 80)
+                    .padding(.horizontal, 60)
                 
-                // Credits & Donation
-                VStack(spacing: 8) {
-                    Text("Made with ❤️ & ☕")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                // Developer Info Cards
+                VStack(spacing: 12) {
+                    AboutInfoCard(icon: "person.circle.fill", title: "Phát triển bởi", value: "Zendy199x")
+                    AboutInfoCard(icon: "swift", title: "Công nghệ", value: "Swift & SwiftUI")
+                    AboutInfoCard(icon: "shield.checkered", title: "Quyền riêng tư", value: "Offline, không thu thập dữ liệu")
+                }
+                .padding(.horizontal, 20)
+                
+                Divider()
+                    .padding(.horizontal, 60)
+                
+                // Donation Section
+                VStack(spacing: 12) {
+                    Text("Ủng hộ phát triển")
+                        .font(ZKTypography.headline)
+                        .foregroundColor(ZKColors.textPrimary)
+                    
+                    Text("Nếu bạn thấy ZendyKey hữu ích, hãy ủng hộ để giúp phát triển thêm các tính năng mới")
+                        .font(ZKTypography.caption)
+                        .foregroundColor(ZKColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
                     
                     Button(action: {
                         showDonationDialog = true
                     }) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "cup.and.saucer.fill")
                             Text("Buy me a coffee")
                         }
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.orange, Color.pink],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        )
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
                 }
                 
                 Divider()
-                    .padding(.horizontal, 80)
+                    .padding(.horizontal, 60)
 
-                // Update Check Section - Using Sparkle
+                // Update Check Section
                 VStack(spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 16))
                             .foregroundColor(.blue)
                         Text("Kiểm tra phiên bản mới")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(ZKTypography.caption)
+                            .foregroundColor(ZKColors.textSecondary)
                     }
 
                     Button("Kiểm tra cập nhật") {
-                        // Temporarily lower the Settings window level so Sparkle dialog appears on top
                         if let settingsWindow = NSApp.keyWindow {
                             settingsWindow.level = .normal
                         }
                         
-                        // Use ZKAppDelegate.shared for reliable access
                         if let appDelegate = ZKAppDelegate.shared {
                             appDelegate.checkForUpdatesFromUI()
                         } else if let delegate = NSApplication.shared.delegate as? ZKAppDelegate {
@@ -721,24 +926,76 @@ struct AboutSettingsSection: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 16)
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(10)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(ZKColors.glassBackground)
+                )
                 .padding(.horizontal, 30)
                 
-                Spacer()
+                Spacer(minLength: 20)
                 
                 // Copyright
-                Text("Inspired by Openkey & Unikey.")
+                Text("Made with ❤️ in Vietnam • Inspired by Openkey & Unikey")
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(ZKColors.textTertiary)
                     .padding(.bottom, 16)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $showDonationDialog) {
             ZKDonationView()
+        }
+    }
+}
+
+// MARK: - About Info Card Component (PHTV-inspired)
+
+struct AboutInfoCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(ZKColors.accent)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(ZKColors.accent.opacity(0.12))
+                )
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(ZKTypography.caption)
+                    .foregroundColor(ZKColors.textTertiary)
+                Text(value)
+                    .font(ZKTypography.body)
+                    .fontWeight(.medium)
+                    .foregroundColor(ZKColors.textPrimary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isHovered ? ZKColors.glassBackground : ZKColors.glassBackground.opacity(0.3))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isHovered ? ZKColors.glassBorder : Color.clear, lineWidth: 1)
+        )
+        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .animation(ZKAnimations.springFast, value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 }

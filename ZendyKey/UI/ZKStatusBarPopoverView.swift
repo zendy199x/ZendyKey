@@ -345,7 +345,6 @@ struct VisualEffectBlur: NSViewRepresentable {
 struct ZKStatusBarPopoverView_Previews: PreviewProvider {
     static var previews: some View {
         ZKStatusBarPopoverView(viewModel: ZKStatusBarViewModel(keyboardHandler: nil, eventTapManager: nil))
-            .preferredColorScheme(.dark)
     }
 }
 #endif

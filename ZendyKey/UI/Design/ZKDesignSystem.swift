@@ -85,31 +85,61 @@ struct AdaptiveColors {
     }
     
     static func glassBorder(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
+        scheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
     }
     
     static func glassHighlight(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.15) : Color.white.opacity(0.6)
+        scheme == .dark ? Color.white.opacity(0.15) : Color.white.opacity(0.8)
     }
     
     static func cardBackground(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "1E1E2E") : Color(nsColor: .controlBackgroundColor)
+        scheme == .dark ? Color(hex: "1E1E2E") : Color.white
     }
     
     static func surfaceBackground(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: "1A1A2E") : Color(nsColor: .windowBackgroundColor)
+        scheme == .dark ? Color(hex: "1A1A2E") : Color(hex: "F5F5F7")  // Apple-style light gray
     }
     
     static func textPrimary(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white : Color(nsColor: .labelColor)
+        scheme == .dark ? Color.white : Color(hex: "1D1D1F")  // Apple-style dark text
     }
     
     static func textSecondary(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.7) : Color(nsColor: .secondaryLabelColor)
+        scheme == .dark ? Color.white.opacity(0.7) : Color(hex: "6E6E73")  // Apple-style secondary
     }
     
     static func textTertiary(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.5) : Color(nsColor: .tertiaryLabelColor)
+        scheme == .dark ? Color.white.opacity(0.5) : Color(hex: "86868B")  // Apple-style tertiary
+    }
+    
+    // Main window/sidebar background
+    static func sidebarBackground(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "1a1a2e") : Color(hex: "F5F5F7")  // Light sidebar
+    }
+    
+    // Content area background gradient
+    static func contentBackgroundGradient(for scheme: ColorScheme) -> LinearGradient {
+        if scheme == .dark {
+            return LinearGradient(
+                colors: [Color(hex: "16213e"), Color(hex: "1a1a2e")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [Color.white, Color(hex: "F5F5F7")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+    
+    // Settings sidebar with subtle overlay
+    static func sidebarBackgroundView(for scheme: ColorScheme) -> some View {
+        ZStack {
+            sidebarBackground(for: scheme)
+            Color.white.opacity(scheme == .dark ? 0.02 : 0)
+        }
     }
 }
 
@@ -170,10 +200,10 @@ struct AdaptiveGlassCard<Content: View>: View {
                             .fill(Color.white.opacity(0.05))
                     )
             } else {
-                // Light mode: Use subtle shadow and white background
+                // Light mode: Clean white card with subtle shadow
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
-                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                    .fill(Color.white)
+                    .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
             }
             
             content
@@ -182,7 +212,7 @@ struct AdaptiveGlassCard<Content: View>: View {
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(
-                    colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                    colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08),
                     lineWidth: 1
                 )
         )
@@ -239,7 +269,7 @@ struct AppearanceModeButton: View {
             .frame(width: 60, height: 56)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? Color.white.opacity(0.05) : Color.clear))
+                    .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? ZKColors.glassBackground : Color.clear))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -284,17 +314,33 @@ struct ZKColors {
         endPoint: .bottomTrailing
     )
     
-    // Glass backgrounds (enhanced with more depth)
-    static let glassBackground = Color.white.opacity(0.05)
-    static let glassBorder = Color.white.opacity(0.1)
-    static let glassHighlight = Color.white.opacity(0.15)
-    static let glassBackgroundElevated = Color.white.opacity(0.08)
-    static let glassBorderStrong = Color.white.opacity(0.18)
+    // Glass backgrounds - ADAPTIVE to light/dark mode
+    static var glassBackground: Color {
+        Color(nsColor: NSColor.controlBackgroundColor).opacity(0.3)
+    }
+    static var glassBorder: Color {
+        Color(nsColor: NSColor.separatorColor)
+    }
+    static var glassHighlight: Color {
+        Color(nsColor: NSColor.controlAccentColor).opacity(0.15)
+    }
+    static var glassBackgroundElevated: Color {
+        Color(nsColor: NSColor.controlBackgroundColor).opacity(0.5)
+    }
+    static var glassBorderStrong: Color {
+        Color(nsColor: NSColor.separatorColor)
+    }
     
-    // Text hierarchy
-    static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.7)
-    static let textTertiary = Color.white.opacity(0.5)
+    // Text hierarchy - ADAPTIVE to light/dark mode
+    static var textPrimary: Color {
+        Color(nsColor: NSColor.labelColor)
+    }
+    static var textSecondary: Color {
+        Color(nsColor: NSColor.secondaryLabelColor)
+    }
+    static var textTertiary: Color {
+        Color(nsColor: NSColor.tertiaryLabelColor)
+    }
     
     // Accent colors
     static let accent = Color(hex: "667EEA")
@@ -305,11 +351,19 @@ struct ZKColors {
     static let successGlow = Color(hex: "38EF7D").opacity(0.3)
     static let warningGlow = Color(hex: "F2994A").opacity(0.3)
     
-    // Dark mode optimized surfaces (Premium enhancement)
-    static let cardBackground = Color(hex: "1E1E2E")
-    static let surfaceElevated = Color(hex: "232334")
-    static let surfacePressed = Color(hex: "161622")
-    static let background = Color(hex: "1A1A2E")
+    // Surface colors - ADAPTIVE
+    static var cardBackground: Color {
+        Color(nsColor: NSColor.controlBackgroundColor)
+    }
+    static var surfaceElevated: Color {
+        Color(nsColor: NSColor.windowBackgroundColor)
+    }
+    static var surfacePressed: Color {
+        Color(nsColor: NSColor.selectedContentBackgroundColor).opacity(0.3)
+    }
+    static var background: Color {
+        Color(nsColor: NSColor.windowBackgroundColor)
+    }
     
     // Status colors
     static let success = Color(hex: "38EF7D")
@@ -491,7 +545,7 @@ struct HoverEffectModifier: ViewModifier {
             .background(
                 showBackground ?
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isHovered ? Color.white.opacity(0.08) : Color.clear)
+                    .fill(isHovered ? ZKColors.glassBackground : Color.clear)
                 : nil
             )
             .scaleEffect(isHovered ? scaleAmount : 1.0)
@@ -575,11 +629,15 @@ struct ZKToggleStyle: ToggleStyle {
             
             ZStack {
                 Capsule()
-                    .fill(configuration.isOn ? ZKColors.accentGradient : LinearGradient(colors: [Color.gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                    .fill(configuration.isOn ? ZKColors.accentGradient : LinearGradient(colors: [ZKColors.glassBackground], startPoint: .leading, endPoint: .trailing))
+                    .overlay(
+                        Capsule()
+                            .stroke(ZKColors.glassBorder, lineWidth: 1)
+                    )
                     .frame(width: 44, height: 26)
                 
                 Circle()
-                    .fill(Color.white)
+                    .fill(Color(nsColor: .controlBackgroundColor))
                     .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
                     .frame(width: 22, height: 22)
                     .offset(x: configuration.isOn ? 9 : -9)
@@ -605,7 +663,7 @@ struct ZKCheckboxStyle: ToggleStyle {
                 // Custom checkbox
                 ZStack {
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(configuration.isOn ? ZKColors.accentGradient : LinearGradient(colors: [Color.white.opacity(0.1)], startPoint: .leading, endPoint: .trailing))
+                        .fill(configuration.isOn ? ZKColors.accentGradient : LinearGradient(colors: [ZKColors.glassBackground], startPoint: .leading, endPoint: .trailing))
                         .frame(width: 20, height: 20)
                     
                     RoundedRectangle(cornerRadius: 5)
@@ -656,7 +714,7 @@ struct ZKSidebarItem: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? Color.white.opacity(0.05) : Color.clear))
+                .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? ZKColors.glassBackground : Color.clear))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -792,6 +850,5 @@ struct ShakeEffect: GeometryEffect {
         ZKSidebarItem(title: "Advanced", icon: "slider.horizontal.3", isSelected: false)
     }
     .padding(40)
-    .background(Color(hex: "1a1a2e"))
-    .preferredColorScheme(.dark)
+    .background(Color(nsColor: .windowBackgroundColor))
 }

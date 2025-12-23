@@ -24,6 +24,12 @@ class ZKEventTapManager {
     var toggleHotkey: Hotkey?
     var onToggleHotkey: (() -> Void)?
     
+    // Pause key configuration (PHTV Feature)
+    var pauseKeyEnabled: Bool = false
+    var pauseKeyCode: UInt16 = 58  // Default: Option key
+    var onPauseKeyDown: (() -> Void)?
+    var onPauseKeyUp: (() -> Void)?
+    
     // Note: Undo typing key is handled by ZKKeyboardEventHandler directly
     // because it needs to check engine state before deciding to consume the key
     
@@ -34,6 +40,14 @@ class ZKEventTapManager {
         var currentModifiers: ModifierFlags = []
         var targetModifiersReached: Bool = false  // True when all required modifiers were pressed
         var hasTriggered: Bool = false
+    }
+    
+    // Pause key state tracking (PHTV Feature)
+    private var pauseKeyState: PauseKeyState = PauseKeyState()
+    
+    private struct PauseKeyState {
+        var isHolding: Bool = false
+        var lastKeyCode: UInt16 = 0
     }
     
     // MARK: - Delegate Protocol
@@ -204,6 +218,43 @@ class ZKEventTapManager {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
             return Unmanaged.passUnretained(event)
+        }
+
+        // PHTV Feature: Pause key handling (hold to temporarily switch to English)
+        if pauseKeyEnabled && type == .flagsChanged {
+            let keyCode = event.keyCode
+            
+            // Check if this is the configured pause key
+            if keyCode == pauseKeyCode {
+                // Determine if key is being pressed or released by checking flags
+                let flags = event.flags
+                let isPauseKeyPressed: Bool
+                
+                if pauseKeyCode == 58 {  // Option key
+                    isPauseKeyPressed = flags.contains(.maskAlternate)
+                } else if pauseKeyCode == 59 {  // Control key
+                    isPauseKeyPressed = flags.contains(.maskControl)
+                } else {
+                    isPauseKeyPressed = false
+                }
+                
+                if isPauseKeyPressed && !pauseKeyState.isHolding {
+                    // Pause key pressed - switch to English temporarily
+                    pauseKeyState.isHolding = true
+                    pauseKeyState.lastKeyCode = keyCode
+                    debugLogCallback?("⏸️ Pause key pressed - temporarily switching to English")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onPauseKeyDown?()
+                    }
+                } else if !isPauseKeyPressed && pauseKeyState.isHolding {
+                    // Pause key released - restore previous mode
+                    pauseKeyState.isHolding = false
+                    debugLogCallback?("▶️ Pause key released - restoring Vietnamese")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onPauseKeyUp?()
+                    }
+                }
+            }
         }
 
         // Check for toggle hotkey FIRST (before delegate processing)

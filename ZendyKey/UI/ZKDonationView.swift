@@ -151,7 +151,6 @@ struct ZKDonationView: View {
             }
         }
         .frame(width: 420, height: 580)
-        .preferredColorScheme(.dark)
     }
 }
 

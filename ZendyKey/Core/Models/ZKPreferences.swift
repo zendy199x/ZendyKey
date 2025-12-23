@@ -8,6 +8,8 @@
 import Foundation
 import Cocoa
 
+// MARK: - Menu Bar Icon Style
+
 enum MenuBarIconStyle: String, Codable, CaseIterable {
     case x = "X"
     case v = "V"
@@ -20,6 +22,57 @@ enum MenuBarIconStyle: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - Restore Key Options (PHTV Feature)
+
+enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
+    case esc = 53      // ESC key code
+    case option = 58   // Option key code
+    case control = 59  // Control key code
+    
+    var id: UInt16 { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .esc: return "ESC"
+        case .option: return "Option (⌥)"
+        case .control: return "Control (⌃)"
+        }
+    }
+    
+    var symbol: String {
+        switch self {
+        case .esc: return "⎋"
+        case .option: return "⌥"
+        case .control: return "⌃"
+        }
+    }
+}
+
+// MARK: - SendKeyStepByStep App Model (PHTV Feature)
+
+struct SendKeyStepByStepApp: Codable, Identifiable, Equatable {
+    var id: String { bundleIdentifier }
+    let bundleIdentifier: String
+    let name: String
+    let path: String
+    
+    init(bundleIdentifier: String, name: String, path: String) {
+        self.bundleIdentifier = bundleIdentifier
+        self.name = name
+        self.path = path
+    }
+    
+    init?(from url: URL) {
+        guard let bundle = Bundle(url: url),
+              let bundleId = bundle.bundleIdentifier else {
+            return nil
+        }
+        self.bundleIdentifier = bundleId
+        self.name = FileManager.default.displayName(atPath: url.path)
+        self.path = url.path
+    }
+}
+
 
 
 struct Preferences: Codable {
@@ -27,6 +80,7 @@ struct Preferences: Codable {
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
     var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
+    var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0) - PHTV Feature
     var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
     
     // Input settings
@@ -36,6 +90,7 @@ struct Preferences: Codable {
     var spellCheckEnabled: Bool = false
     var fixAutocomplete: Bool = true
     var autoRestoreEnglishEnabled: Bool = false  // Auto-restore English when foreign pattern detected
+    var rememberCodeTable: Bool = true           // Remember code table between sessions - PHTV Feature
     
     // Advanced features
     var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
@@ -51,10 +106,24 @@ struct Preferences: Codable {
     var freeToneEnabled: Bool = false            // Free tone placement without validation
     var perAppModeEnabled: Bool = false          // Remember language mode per application
     
+    // Restore key configuration - PHTV Feature
+    var restoreOnEscape: Bool = true             // Enable restore to raw keys
+    var restoreKey: RestoreKey = .esc            // Key to restore raw input
+    
+    // Pause key configuration - PHTV Feature
+    var pauseKeyEnabled: Bool = false            // Hold key to temporarily switch to English
+    var pauseKey: UInt16 = 58                    // Default: Option key
+    var pauseKeyName: String = "Option"          // Display name for pause key
+    
     // Macro settings
     var macroEnabled: Bool = false               // Enable text shortcuts
     var macroInEnglishMode: Bool = false         // Use macro in English mode
     var autoCapsMacro: Bool = false              // Auto capitalize macro output
+    
+    // Compatibility settings - PHTV Feature
+    var sendKeyStepByStep: Bool = false          // Global step-by-step key sending
+    var fixChromiumBrowser: Bool = true          // Fix Chromium browser issues
+    var performLayoutCompat: Bool = false        // Layout compatibility mode
     
     // Smart switch settings
     var smartSwitchEnabled: Bool = false         // Remember language per app
@@ -73,9 +142,14 @@ struct Preferences: Codable {
     var showDockIcon: Bool = false               // Show icon in Dock (menu bar always visible)
     var startAtLogin: Bool = false
     var menuBarIconStyle: MenuBarIconStyle = .x  // Icon style for menubar
+    var useVietnameseMenubarIcon: Bool = false   // Use V icon when Vietnamese mode - PHTV Feature
+    var menuBarIconSize: Double = 18.0           // Menu bar icon size in pixels - PHTV Feature
     
     // Excluded apps - apps where Vietnamese input is disabled
     var excludedApps: [ExcludedApp] = []
+    
+    // SendKeyStepByStep apps - PHTV Feature
+    var sendKeyStepByStepApps: [SendKeyStepByStepApp] = []
 }
 
 // MARK: - Excluded App Model

@@ -19,6 +19,7 @@ enum ZKSharedSettingsKey: String {
     case toggleHotkeyIsModifierOnly = "ZendyKey.toggleHotkeyIsModifierOnly"
     case undoTypingEnabled = "ZendyKey.undoTypingEnabled"
     case beepOnToggle = "ZendyKey.beepOnToggle"
+    case beepVolume = "ZendyKey.beepVolume"
 
     // Input settings
     case inputMethod = "ZendyKey.inputMethod"
@@ -26,6 +27,7 @@ enum ZKSharedSettingsKey: String {
     case modernStyle = "ZendyKey.modernStyle"
     case spellCheckEnabled = "ZendyKey.spellCheckEnabled"
     case fixAutocomplete = "ZendyKey.fixAutocomplete"
+    case rememberCodeTable = "ZendyKey.rememberCodeTable"
 
     // Advanced settings
     case quickTelexEnabled = "ZendyKey.quickTelexEnabled"
@@ -38,6 +40,15 @@ enum ZKSharedSettingsKey: String {
     case tempOffSpellingEnabled = "ZendyKey.tempOffSpellingEnabled"
     case tempOffEngineEnabled = "ZendyKey.tempOffEngineEnabled"
 
+    // Restore key settings (PHTV Feature)
+    case restoreOnEscape = "ZendyKey.restoreOnEscape"
+    case restoreKey = "ZendyKey.restoreKey"
+
+    // Pause key settings (PHTV Feature)
+    case pauseKeyEnabled = "ZendyKey.pauseKeyEnabled"
+    case pauseKey = "ZendyKey.pauseKey"
+    case pauseKeyName = "ZendyKey.pauseKeyName"
+
     // Macro settings
     case macroEnabled = "ZendyKey.macroEnabled"
     case macroInEnglishMode = "ZendyKey.macroInEnglishMode"
@@ -47,6 +58,12 @@ enum ZKSharedSettingsKey: String {
     // Smart switch settings
     case smartSwitchEnabled = "ZendyKey.smartSwitchEnabled"
     case detectOverlayApps = "ZendyKey.detectOverlayApps"
+
+    // Compatibility settings (PHTV Feature)
+    case sendKeyStepByStep = "ZendyKey.sendKeyStepByStep"
+    case sendKeyStepByStepApps = "ZendyKey.sendKeyStepByStepApps"
+    case fixChromiumBrowser = "ZendyKey.fixChromiumBrowser"
+    case performLayoutCompat = "ZendyKey.performLayoutCompat"
 
     // Debug settings
     case debugModeEnabled = "ZendyKey.debugModeEnabled"
@@ -62,6 +79,8 @@ enum ZKSharedSettingsKey: String {
     case showDockIcon = "ZendyKey.showDockIcon"
     case startAtLogin = "ZendyKey.startAtLogin"
     case menuBarIconStyle = "ZendyKey.menuBarIconStyle"
+    case useVietnameseMenubarIcon = "ZendyKey.useVietnameseMenubarIcon"
+    case menuBarIconSize = "ZendyKey.menuBarIconSize"
 
     // Excluded apps
     case excludedApps = "ZendyKey.excludedApps"
@@ -227,6 +246,14 @@ class ZKSharedSettings {
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.beepOnToggle.rawValue) }
     }
 
+    var beepVolume: Double {
+        get {
+            let volume = defaults.double(forKey: ZKSharedSettingsKey.beepVolume.rawValue)
+            return volume > 0 ? volume : 0.5  // Default to 0.5 if not set
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.beepVolume.rawValue) }
+    }
+
     // MARK: - Input Method Settings
 
     var inputMethod: Int {
@@ -269,6 +296,17 @@ class ZKSharedSettings {
     var fixAutocomplete: Bool {
         get { defaults.bool(forKey: ZKSharedSettingsKey.fixAutocomplete.rawValue) }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.fixAutocomplete.rawValue) }
+    }
+
+    var rememberCodeTable: Bool {
+        get {
+            // Default to true if not explicitly set
+            if defaults.object(forKey: ZKSharedSettingsKey.rememberCodeTable.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.rememberCodeTable.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.rememberCodeTable.rawValue) }
     }
 
     // MARK: - Advanced Settings
@@ -374,6 +412,78 @@ class ZKSharedSettings {
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.detectOverlayApps.rawValue) }
     }
 
+    // MARK: - Compatibility Settings (PHTV Feature)
+
+    var sendKeyStepByStep: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.sendKeyStepByStep.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.sendKeyStepByStep.rawValue) }
+    }
+
+    var fixChromiumBrowser: Bool {
+        get {
+            // Default to true if not explicitly set
+            if defaults.object(forKey: ZKSharedSettingsKey.fixChromiumBrowser.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.fixChromiumBrowser.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.fixChromiumBrowser.rawValue) }
+    }
+
+    var performLayoutCompat: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.performLayoutCompat.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.performLayoutCompat.rawValue) }
+    }
+
+    func getSendKeyStepByStepApps() -> Data? {
+        return defaults.data(forKey: ZKSharedSettingsKey.sendKeyStepByStepApps.rawValue)
+    }
+
+    func setSendKeyStepByStepApps(_ data: Data) {
+        defaults.set(data, forKey: ZKSharedSettingsKey.sendKeyStepByStepApps.rawValue)
+    }
+
+    // MARK: - Restore Key Settings (PHTV Feature)
+
+    var restoreOnEscape: Bool {
+        get {
+            // Default to true if not explicitly set
+            if defaults.object(forKey: ZKSharedSettingsKey.restoreOnEscape.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.restoreOnEscape.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.restoreOnEscape.rawValue) }
+    }
+
+    var restoreKey: UInt16 {
+        get {
+            let value = defaults.integer(forKey: ZKSharedSettingsKey.restoreKey.rawValue)
+            return value > 0 ? UInt16(value) : 53  // Default to ESC (53)
+        }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.restoreKey.rawValue) }
+    }
+
+    // MARK: - Pause Key Settings (PHTV Feature)
+
+    var pauseKeyEnabled: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.pauseKeyEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.pauseKeyEnabled.rawValue) }
+    }
+
+    var pauseKey: UInt16 {
+        get {
+            let value = defaults.integer(forKey: ZKSharedSettingsKey.pauseKey.rawValue)
+            return value > 0 ? UInt16(value) : 58  // Default to Option (58)
+        }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.pauseKey.rawValue) }
+    }
+
+    var pauseKeyName: String {
+        get { defaults.string(forKey: ZKSharedSettingsKey.pauseKeyName.rawValue) ?? "Option" }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.pauseKeyName.rawValue) }
+    }
+
     // MARK: - Debug Settings
 
     var debugModeEnabled: Bool {
@@ -434,6 +544,19 @@ class ZKSharedSettings {
     var menuBarIconStyle: String {
         get { defaults.string(forKey: ZKSharedSettingsKey.menuBarIconStyle.rawValue) ?? "X" }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.menuBarIconStyle.rawValue) }
+    }
+
+    var useVietnameseMenubarIcon: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.useVietnameseMenubarIcon.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.useVietnameseMenubarIcon.rawValue) }
+    }
+
+    var menuBarIconSize: Double {
+        get {
+            let size = defaults.double(forKey: ZKSharedSettingsKey.menuBarIconSize.rawValue)
+            return size > 0 ? size : 18.0  // Default to 18.0 if not set
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.menuBarIconSize.rawValue) }
     }
 
     // MARK: - Excluded Apps
@@ -580,6 +703,7 @@ class ZKSharedSettings {
         }
         prefs.undoTypingEnabled = undoTypingEnabled
         prefs.beepOnToggle = beepOnToggle
+        prefs.beepVolume = beepVolume
 
         // Input settings
         if let method = InputMethod(rawValue: inputMethod) {
@@ -591,6 +715,7 @@ class ZKSharedSettings {
         prefs.modernStyle = modernStyle
         prefs.spellCheckEnabled = spellCheckEnabled
         prefs.fixAutocomplete = fixAutocomplete
+        prefs.rememberCodeTable = rememberCodeTable
 
         // Advanced settings
         prefs.quickTelexEnabled = quickTelexEnabled
@@ -603,6 +728,17 @@ class ZKSharedSettings {
         prefs.tempOffSpellingEnabled = tempOffSpellingEnabled
         prefs.tempOffEngineEnabled = tempOffEngineEnabled
 
+        // Restore key settings (PHTV Feature)
+        prefs.restoreOnEscape = restoreOnEscape
+        if let key = RestoreKey(rawValue: restoreKey) {
+            prefs.restoreKey = key
+        }
+
+        // Pause key settings (PHTV Feature)
+        prefs.pauseKeyEnabled = pauseKeyEnabled
+        prefs.pauseKey = pauseKey
+        prefs.pauseKeyName = pauseKeyName
+
         // Macro settings
         prefs.macroEnabled = macroEnabled
         prefs.macroInEnglishMode = macroInEnglishMode
@@ -611,6 +747,11 @@ class ZKSharedSettings {
         // Smart switch
         prefs.smartSwitchEnabled = smartSwitchEnabled
         prefs.detectOverlayApps = detectOverlayApps
+
+        // Compatibility settings (PHTV Feature)
+        prefs.sendKeyStepByStep = sendKeyStepByStep
+        prefs.fixChromiumBrowser = fixChromiumBrowser
+        prefs.performLayoutCompat = performLayoutCompat
 
         // Debug
         prefs.debugModeEnabled = debugModeEnabled
@@ -636,11 +777,19 @@ class ZKSharedSettings {
         if let style = MenuBarIconStyle(rawValue: menuBarIconStyle) {
             prefs.menuBarIconStyle = style
         }
+        prefs.useVietnameseMenubarIcon = useVietnameseMenubarIcon
+        prefs.menuBarIconSize = menuBarIconSize
 
         // Excluded apps
         if let data = getExcludedApps(),
            let apps = try? JSONDecoder().decode([ExcludedApp].self, from: data) {
             prefs.excludedApps = apps
+        }
+
+        // SendKeyStepByStep apps (PHTV Feature)
+        if let data = getSendKeyStepByStepApps(),
+           let apps = try? JSONDecoder().decode([SendKeyStepByStepApp].self, from: data) {
+            prefs.sendKeyStepByStepApps = apps
         }
 
         return prefs
@@ -661,6 +810,7 @@ class ZKSharedSettings {
         toggleHotkeyIsModifierOnly = prefs.toggleHotkey.isModifierOnly
         undoTypingEnabled = prefs.undoTypingEnabled
         beepOnToggle = prefs.beepOnToggle
+        beepVolume = prefs.beepVolume
 
         // Input settings
         inputMethod = prefs.inputMethod.rawValue
@@ -668,6 +818,7 @@ class ZKSharedSettings {
         modernStyle = prefs.modernStyle
         spellCheckEnabled = prefs.spellCheckEnabled
         fixAutocomplete = prefs.fixAutocomplete
+        rememberCodeTable = prefs.rememberCodeTable
 
         // Advanced settings
         quickTelexEnabled = prefs.quickTelexEnabled
@@ -680,6 +831,15 @@ class ZKSharedSettings {
         tempOffSpellingEnabled = prefs.tempOffSpellingEnabled
         tempOffEngineEnabled = prefs.tempOffEngineEnabled
 
+        // Restore key settings (PHTV Feature)
+        restoreOnEscape = prefs.restoreOnEscape
+        restoreKey = prefs.restoreKey.rawValue
+
+        // Pause key settings (PHTV Feature)
+        pauseKeyEnabled = prefs.pauseKeyEnabled
+        pauseKey = prefs.pauseKey
+        pauseKeyName = prefs.pauseKeyName
+
         // Macro settings
         macroEnabled = prefs.macroEnabled
         macroInEnglishMode = prefs.macroInEnglishMode
@@ -688,6 +848,11 @@ class ZKSharedSettings {
         // Smart switch
         smartSwitchEnabled = prefs.smartSwitchEnabled
         detectOverlayApps = prefs.detectOverlayApps
+
+        // Compatibility settings (PHTV Feature)
+        sendKeyStepByStep = prefs.sendKeyStepByStep
+        fixChromiumBrowser = prefs.fixChromiumBrowser
+        performLayoutCompat = prefs.performLayoutCompat
 
         // Debug
         debugModeEnabled = prefs.debugModeEnabled
@@ -712,10 +877,17 @@ class ZKSharedSettings {
         showDockIcon = prefs.showDockIcon
         startAtLogin = prefs.startAtLogin
         menuBarIconStyle = prefs.menuBarIconStyle.rawValue
+        useVietnameseMenubarIcon = prefs.useVietnameseMenubarIcon
+        menuBarIconSize = prefs.menuBarIconSize
 
         // Excluded apps
         if let data = try? JSONEncoder().encode(prefs.excludedApps) {
             setExcludedApps(data)
+        }
+
+        // SendKeyStepByStep apps (PHTV Feature)
+        if let data = try? JSONEncoder().encode(prefs.sendKeyStepByStepApps) {
+            setSendKeyStepByStepApps(data)
         }
 
         // Batch update is done - disable batch mode and write critical values to plist

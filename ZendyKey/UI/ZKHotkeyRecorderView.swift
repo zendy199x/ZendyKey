@@ -220,6 +220,5 @@ struct ZKHotkeyRecorderView: View {
 #Preview {
     ZKHotkeyRecorderView(hotkey: .constant(Hotkey(keyCode: 9, modifiers: [.command, .shift], isModifierOnly: false)))
         .padding()
-        .background(Color(hex: "1a1a2e"))
-        .preferredColorScheme(.dark)
+        .background(Color(nsColor: .windowBackgroundColor))
 }

@@ -8,14 +8,15 @@
 import SwiftUI
 
 struct ZKDebugView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: ZKDebugViewModel
     @State private var isHoveredClear = false
     @State private var isHoveredCopy = false
     
     var body: some View {
         ZStack {
-            // Background
-            Color(hex: "0f0f1a")
+            // Background - adaptive
+            (colorScheme == .dark ? Color(hex: "0f0f1a") : Color(hex: "F5F5F7"))
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -30,11 +31,11 @@ struct ZKDebugView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(viewModel.statusText)
                                 .font(ZKTypography.headline)
-                                .foregroundColor(ZKColors.textPrimary)
+                                .foregroundColor(AdaptiveColors.textPrimary(for: colorScheme))
                             
                             Text("Log file: ~/ZendyKey_Debug.log")
                                 .font(ZKTypography.caption2)
-                                .foregroundColor(ZKColors.textTertiary)
+                                .foregroundColor(AdaptiveColors.textTertiary(for: colorScheme))
                         }
                     }
                     
@@ -51,7 +52,7 @@ struct ZKDebugView: View {
                         
                         Text("Logging")
                             .font(ZKTypography.caption)
-                            .foregroundColor(ZKColors.textSecondary)
+                            .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
                     }
                 }
                 .padding(16)
@@ -67,7 +68,7 @@ struct ZKDebugView: View {
                             GradientIcon(systemName: "keyboard", size: 14)
                             Text("Input Test Area")
                                 .font(ZKTypography.caption)
-                                .foregroundColor(ZKColors.textTertiary)
+                                .foregroundColor(AdaptiveColors.textTertiary(for: colorScheme))
                                 .textCase(.uppercase)
                         }
                         
@@ -80,29 +81,29 @@ struct ZKDebugView: View {
                                 Text("Read Word (⌘⇧R)")
                                     .font(ZKTypography.caption)
                             }
-                            .foregroundColor(ZKColors.textSecondary)
+                            .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.white.opacity(0.05))
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
                         )
                         .hoverEffect(scale: 1.02, showBackground: false)
                     }
                     
                     TextEditor(text: $viewModel.inputText)
                         .font(.system(size: 15, design: .monospaced))
-                        .foregroundColor(ZKColors.textPrimary)
+                        .foregroundColor(AdaptiveColors.textPrimary(for: colorScheme))
                         .padding(12)
                         .frame(height: 150)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(0.03))
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.03) : Color.white)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(ZKColors.glassBorder, lineWidth: 1)
+                                        .stroke(AdaptiveColors.glassBorder(for: colorScheme), lineWidth: 1)
                                 )
                         )
                 }
@@ -115,7 +116,7 @@ struct ZKDebugView: View {
                             GradientIcon(systemName: "doc.text", size: 14)
                             Text("Debug Logs")
                                 .font(ZKTypography.caption)
-                                .foregroundColor(ZKColors.textTertiary)
+                                .foregroundColor(AdaptiveColors.textTertiary(for: colorScheme))
                                 .textCase(.uppercase)
                         }
                         
@@ -125,7 +126,7 @@ struct ZKDebugView: View {
                             Toggle("Verbose", isOn: $viewModel.isVerboseLogging)
                                 .toggleStyle(ZKCheckboxStyle())
                                 .font(ZKTypography.caption)
-                                .foregroundColor(ZKColors.textSecondary)
+                                .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
                             
                             Button(action: { viewModel.openLogFile() }) {
                                 HStack(spacing: 4) {
@@ -134,17 +135,17 @@ struct ZKDebugView: View {
                                     Text("Open")
                                 }
                                 .font(ZKTypography.caption)
-                                .foregroundColor(ZKColors.textSecondary)
+                                .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
                             }
                             .buttonStyle(.plain)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.05)))
+                            .background(RoundedRectangle(cornerRadius: 4).fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)))
                             
                             Button(action: { viewModel.clearLogs() }) {
                                 Image(systemName: "trash")
                                     .font(.system(size: 12))
-                                    .foregroundColor(ZKColors.textTertiary)
+                                    .foregroundColor(AdaptiveColors.textTertiary(for: colorScheme))
                             }
                             .buttonStyle(.plain)
                             .hoverEffect(scale: 1.1, showBackground: false)
@@ -152,7 +153,7 @@ struct ZKDebugView: View {
                             Button(action: { viewModel.copyLogs() }) {
                                 Image(systemName: "doc.on.doc")
                                     .font(.system(size: 12))
-                                    .foregroundColor(ZKColors.textTertiary)
+                                    .foregroundColor(AdaptiveColors.textTertiary(for: colorScheme))
                             }
                             .buttonStyle(.plain)
                             .hoverEffect(scale: 1.1, showBackground: false)
@@ -163,7 +164,7 @@ struct ZKDebugView: View {
                         ScrollViewReader { proxy in
                             Text(viewModel.logText)
                                 .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(ZKColors.textSecondary)
+                                .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .textSelection(.enabled)
                                 .id("logBottom")
@@ -176,10 +177,10 @@ struct ZKDebugView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.black.opacity(0.3))
+                            .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(ZKColors.glassBorder, lineWidth: 1)
+                                    .stroke(AdaptiveColors.glassBorder(for: colorScheme), lineWidth: 1)
                             )
                     )
                 }
@@ -187,7 +188,6 @@ struct ZKDebugView: View {
             }
         }
         .frame(width: 850, height: 650)
-        .preferredColorScheme(.dark)
     }
 }
 

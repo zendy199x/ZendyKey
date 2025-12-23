@@ -48,13 +48,12 @@ struct ZKMenuBarHeaderView: View {
     
     private var logoSection: some View {
         ZStack {
-            // Subtle glow
-            if isVietnameseEnabled {
-                Circle()
-                    .fill(Color.purple.opacity(0.3))
-                    .frame(width: 44, height: 44)
-                    .blur(radius: 8)
-            }
+            // Subtle glow (always rendered to prevent layout shift)
+            Circle()
+                .fill(Color.purple.opacity(0.3))
+                .frame(width: 44, height: 44)
+                .blur(radius: 8)
+                .opacity(isVietnameseEnabled ? 1 : 0)
             
             // Logo
             if let logo = NSImage(named: "ZendyKeyLogo") {

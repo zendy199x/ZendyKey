@@ -107,6 +107,69 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 | **Quick Telex** | ✅ | ❌ | ❌ |
 | **IMKit Support** | ✅ | ❌ | ❌ |
 | **VIQR Input** | ✅ | ⚠️ | ❌ |
+| **Macro Import/Export** | ✅ | ❌ | ⚠️ |
+| **Chrome/Arc Fix** | ✅ | ⚠️ | ⚠️ |
+| **Pause Key** | ✅ | ❌ | ❌ |
+| **Smart Switch** | ✅ | ❌ | ✅ |
+
+---
+
+## ⌨️ Phím tắt
+
+| Phím | Chức năng |
+|------|-----------|
+| `Ctrl + Shift` | Chuyển VN/EN (mặc định) |
+| `ESC` | Khôi phục từ về dạng chưa có dấu |
+| `Option` (giữ) | Tạm dừng gõ tiếng Việt |
+| `Backspace` | Xóa từng ký tự |
+
+---
+
+## ❓ Câu hỏi thường gặp (FAQ)
+
+<details>
+<summary><strong>Làm sao để bật gõ tiếng Việt?</strong></summary>
+
+Sau khi cài đặt, ZendyKey sẽ xuất hiện trong menu bar. Click vào icon và chọn "Bật tiếng Việt" hoặc nhấn `Ctrl + Shift`.
+
+</details>
+
+<details>
+<summary><strong>Tại sao ZendyKey không hoạt động trong một số app?</strong></summary>
+
+1. **Kiểm tra quyền Accessibility**: System Settings → Privacy & Security → Accessibility → Bật ZendyKey
+2. **Excluded Apps**: Kiểm tra app có trong danh sách loại trừ không (Settings → Excluded Apps)
+3. **Restart app**: Thử khởi động lại app đang dùng
+
+</details>
+
+<details>
+<summary><strong>Có thể dùng VNI thay vì Telex được không?</strong></summary>
+
+Có! Vào Settings → Input → chọn "VNI" trong phần Input Method. ZendyKey hỗ trợ Telex, VNI, và VIQR.
+
+</details>
+
+<details>
+<summary><strong>Làm sao để tạm dừng gõ tiếng Việt?</strong></summary>
+
+Nhấn giữ phím **Option (⌥)** để tạm thời chuyển sang tiếng Anh. Thả ra sẽ tự động quay lại tiếng Việt.
+
+</details>
+
+<details>
+<summary><strong>Macro là gì và sử dụng như thế nào?</strong></summary>
+
+Macro giúp bạn gõ tắt. Ví dụ: `vn` → `Việt Nam`. Vào Settings → Macros để thêm/sửa/xóa macro. Bạn cũng có thể import/export macro dạng text file.
+
+</details>
+
+<details>
+<summary><strong>ZendyKey có thu thập dữ liệu không?</strong></summary>
+
+**Không.** ZendyKey hoạt động 100% offline, không gửi bất kỳ dữ liệu nào đi. Mã nguồn mở, bạn có thể tự kiểm tra.
+
+</details>
 
 ---
 
