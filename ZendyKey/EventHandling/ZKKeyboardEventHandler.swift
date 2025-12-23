@@ -285,6 +285,9 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         guard type == .keyDown else {
             return event
         }
+        
+        // Record keystroke for statistics (non-blocking, high-performance)
+        ZKStatisticsManager.shared.recordKeystroke()
 
         // Get physical key code
         let keyCode = event.keyCode
@@ -402,6 +405,20 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             
             // Check if macro was found and replaced
             if result.shouldConsume {
+                // Record macro usage for statistics
+                if result.isMacroReplacement {
+                    // Get the macro key that was replaced (from engine's last macro key)
+                    let macroKey = engine.getLastMacroKey()
+                    if !macroKey.isEmpty {
+                        ZKStatisticsManager.shared.recordShortcut(name: macroKey)
+                    }
+                }
+                
+                // Record auto-restore for statistics
+                if result.isAutoRestore {
+                    ZKStatisticsManager.shared.recordAutoRestore()
+                }
+                
                 // Send backspaces
                 if result.backspaceCount > 0 {
                     injector.sendBackspaces(
@@ -450,6 +467,21 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         )
 
         if result.shouldConsume {
+            // Record Vietnamese character output for statistics
+            // Count ALL characters for CPM (characters per minute)
+            let totalCharCount = result.newCharacters.count
+            if totalCharCount > 0 {
+                for _ in 0..<totalCharCount {
+                    ZKStatisticsManager.shared.recordVietnameseChar()
+                }
+            }
+            
+            // Record auto-restore for statistics
+            if result.isAutoRestore {
+                ZKStatisticsManager.shared.recordAutoRestore()
+            }
+
+            
             // Use synchronized injection (backspace + text in one atomic operation)
             // This prevents race conditions in terminals where next keystroke arrives
             // between backspace and text injection

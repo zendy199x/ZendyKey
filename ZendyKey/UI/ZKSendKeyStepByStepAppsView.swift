@@ -3,7 +3,7 @@
 //  ZendyKey
 //
 //  View for managing SendKeyStepByStep apps - apps where step-by-step key sending is enabled
-//  PHTV Feature: Apps that need character-by-character input instead of bulk replacement
+//  Apps that need character-by-character input instead of bulk replacement
 //
 
 import SwiftUI

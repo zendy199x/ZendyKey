@@ -40,11 +40,11 @@ enum ZKSharedSettingsKey: String {
     case tempOffSpellingEnabled = "ZendyKey.tempOffSpellingEnabled"
     case tempOffEngineEnabled = "ZendyKey.tempOffEngineEnabled"
 
-    // Restore key settings (PHTV Feature)
+    // Restore key settings
     case restoreOnEscape = "ZendyKey.restoreOnEscape"
     case restoreKey = "ZendyKey.restoreKey"
 
-    // Pause key settings (PHTV Feature)
+    // Pause key settings
     case pauseKeyEnabled = "ZendyKey.pauseKeyEnabled"
     case pauseKey = "ZendyKey.pauseKey"
     case pauseKeyName = "ZendyKey.pauseKeyName"
@@ -59,11 +59,16 @@ enum ZKSharedSettingsKey: String {
     case smartSwitchEnabled = "ZendyKey.smartSwitchEnabled"
     case detectOverlayApps = "ZendyKey.detectOverlayApps"
 
-    // Compatibility settings (PHTV Feature)
+    // Compatibility settings
     case sendKeyStepByStep = "ZendyKey.sendKeyStepByStep"
     case sendKeyStepByStepApps = "ZendyKey.sendKeyStepByStepApps"
     case fixChromiumBrowser = "ZendyKey.fixChromiumBrowser"
     case performLayoutCompat = "ZendyKey.performLayoutCompat"
+    
+    // Per-app settings
+    case perAppModeEnabled = "ZendyKey.perAppModeEnabled"
+    case rememberCodeTablePerApp = "ZendyKey.rememberCodeTablePerApp"
+    case preserveVietnameseModeWithOtherLanguage = "ZendyKey.preserveVietnameseModeWithOtherLanguage"
 
     // Debug settings
     case debugModeEnabled = "ZendyKey.debugModeEnabled"
@@ -412,7 +417,7 @@ class ZKSharedSettings {
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.detectOverlayApps.rawValue) }
     }
 
-    // MARK: - Compatibility Settings (PHTV Feature)
+    // MARK: - Compatibility Settings
 
     var sendKeyStepByStep: Bool {
         get { defaults.bool(forKey: ZKSharedSettingsKey.sendKeyStepByStep.rawValue) }
@@ -443,7 +448,36 @@ class ZKSharedSettings {
         defaults.set(data, forKey: ZKSharedSettingsKey.sendKeyStepByStepApps.rawValue)
     }
 
-    // MARK: - Restore Key Settings (PHTV Feature)
+    // MARK: - Per-App Settings
+
+    var perAppModeEnabled: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.perAppModeEnabled.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.perAppModeEnabled.rawValue) }
+    }
+
+    var rememberCodeTablePerApp: Bool {
+        get {
+            // Default to true if not explicitly set (like OpenKey)
+            if defaults.object(forKey: ZKSharedSettingsKey.rememberCodeTablePerApp.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.rememberCodeTablePerApp.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.rememberCodeTablePerApp.rawValue) }
+    }
+
+    var preserveVietnameseModeWithOtherLanguage: Bool {
+        get {
+            // Default to true if not explicitly set (like OpenKey vOtherLanguage)
+            if defaults.object(forKey: ZKSharedSettingsKey.preserveVietnameseModeWithOtherLanguage.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.preserveVietnameseModeWithOtherLanguage.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.preserveVietnameseModeWithOtherLanguage.rawValue) }
+    }
+
+    // MARK: - Restore Key Settings
 
     var restoreOnEscape: Bool {
         get {
@@ -464,7 +498,7 @@ class ZKSharedSettings {
         set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.restoreKey.rawValue) }
     }
 
-    // MARK: - Pause Key Settings (PHTV Feature)
+    // MARK: - Pause Key Settings
 
     var pauseKeyEnabled: Bool {
         get { defaults.bool(forKey: ZKSharedSettingsKey.pauseKeyEnabled.rawValue) }
@@ -728,13 +762,13 @@ class ZKSharedSettings {
         prefs.tempOffSpellingEnabled = tempOffSpellingEnabled
         prefs.tempOffEngineEnabled = tempOffEngineEnabled
 
-        // Restore key settings (PHTV Feature)
+        // Restore key settings
         prefs.restoreOnEscape = restoreOnEscape
         if let key = RestoreKey(rawValue: restoreKey) {
             prefs.restoreKey = key
         }
 
-        // Pause key settings (PHTV Feature)
+        // Pause key settings
         prefs.pauseKeyEnabled = pauseKeyEnabled
         prefs.pauseKey = pauseKey
         prefs.pauseKeyName = pauseKeyName
@@ -748,7 +782,12 @@ class ZKSharedSettings {
         prefs.smartSwitchEnabled = smartSwitchEnabled
         prefs.detectOverlayApps = detectOverlayApps
 
-        // Compatibility settings (PHTV Feature)
+        // Per-app settings
+        prefs.perAppModeEnabled = perAppModeEnabled
+        prefs.rememberCodeTablePerApp = rememberCodeTablePerApp
+        prefs.preserveVietnameseModeWithOtherLanguage = preserveVietnameseModeWithOtherLanguage
+
+        // Compatibility settings
         prefs.sendKeyStepByStep = sendKeyStepByStep
         prefs.fixChromiumBrowser = fixChromiumBrowser
         prefs.performLayoutCompat = performLayoutCompat
@@ -786,7 +825,7 @@ class ZKSharedSettings {
             prefs.excludedApps = apps
         }
 
-        // SendKeyStepByStep apps (PHTV Feature)
+        // SendKeyStepByStep apps
         if let data = getSendKeyStepByStepApps(),
            let apps = try? JSONDecoder().decode([SendKeyStepByStepApp].self, from: data) {
             prefs.sendKeyStepByStepApps = apps
@@ -831,11 +870,11 @@ class ZKSharedSettings {
         tempOffSpellingEnabled = prefs.tempOffSpellingEnabled
         tempOffEngineEnabled = prefs.tempOffEngineEnabled
 
-        // Restore key settings (PHTV Feature)
+        // Restore key settings
         restoreOnEscape = prefs.restoreOnEscape
         restoreKey = prefs.restoreKey.rawValue
 
-        // Pause key settings (PHTV Feature)
+        // Pause key settings
         pauseKeyEnabled = prefs.pauseKeyEnabled
         pauseKey = prefs.pauseKey
         pauseKeyName = prefs.pauseKeyName
@@ -849,7 +888,12 @@ class ZKSharedSettings {
         smartSwitchEnabled = prefs.smartSwitchEnabled
         detectOverlayApps = prefs.detectOverlayApps
 
-        // Compatibility settings (PHTV Feature)
+        // Per-app settings
+        perAppModeEnabled = prefs.perAppModeEnabled
+        rememberCodeTablePerApp = prefs.rememberCodeTablePerApp
+        preserveVietnameseModeWithOtherLanguage = prefs.preserveVietnameseModeWithOtherLanguage
+
+        // Compatibility settings
         sendKeyStepByStep = prefs.sendKeyStepByStep
         fixChromiumBrowser = prefs.fixChromiumBrowser
         performLayoutCompat = prefs.performLayoutCompat
@@ -885,7 +929,7 @@ class ZKSharedSettings {
             setExcludedApps(data)
         }
 
-        // SendKeyStepByStep apps (PHTV Feature)
+        // SendKeyStepByStep apps
         if let data = try? JSONEncoder().encode(prefs.sendKeyStepByStepApps) {
             setSendKeyStepByStepApps(data)
         }

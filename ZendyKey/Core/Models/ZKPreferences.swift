@@ -22,7 +22,7 @@ enum MenuBarIconStyle: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Restore Key Options (PHTV Feature)
+// MARK: - Restore Key Options
 
 enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
     case esc = 53      // ESC key code
@@ -48,7 +48,7 @@ enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - SendKeyStepByStep App Model (PHTV Feature)
+// MARK: - SendKeyStepByStep App Model
 
 struct SendKeyStepByStepApp: Codable, Identifiable, Equatable {
     var id: String { bundleIdentifier }
@@ -80,7 +80,7 @@ struct Preferences: Codable {
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
     var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
-    var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0) - PHTV Feature
+    var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
     var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
     
     // Input settings
@@ -90,7 +90,7 @@ struct Preferences: Codable {
     var spellCheckEnabled: Bool = false
     var fixAutocomplete: Bool = true
     var autoRestoreEnglishEnabled: Bool = false  // Auto-restore English when foreign pattern detected
-    var rememberCodeTable: Bool = true           // Remember code table between sessions - PHTV Feature
+    var rememberCodeTable: Bool = true           // Remember code table between sessions
     
     // Advanced features
     var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
@@ -105,12 +105,14 @@ struct Preferences: Codable {
     var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
     var freeToneEnabled: Bool = false            // Free tone placement without validation
     var perAppModeEnabled: Bool = false          // Remember language mode per application
+    var rememberCodeTablePerApp: Bool = true     // Remember code table per app (OpenKey vRememberCode)
+    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard (OpenKey vOtherLanguage)
     
-    // Restore key configuration - PHTV Feature
+    // Restore key configuration
     var restoreOnEscape: Bool = true             // Enable restore to raw keys
     var restoreKey: RestoreKey = .esc            // Key to restore raw input
     
-    // Pause key configuration - PHTV Feature
+    // Pause key configuration
     var pauseKeyEnabled: Bool = false            // Hold key to temporarily switch to English
     var pauseKey: UInt16 = 58                    // Default: Option key
     var pauseKeyName: String = "Option"          // Display name for pause key
@@ -120,7 +122,7 @@ struct Preferences: Codable {
     var macroInEnglishMode: Bool = false         // Use macro in English mode
     var autoCapsMacro: Bool = false              // Auto capitalize macro output
     
-    // Compatibility settings - PHTV Feature
+    // Compatibility settings
     var sendKeyStepByStep: Bool = false          // Global step-by-step key sending
     var fixChromiumBrowser: Bool = true          // Fix Chromium browser issues
     var performLayoutCompat: Bool = false        // Layout compatibility mode
@@ -142,13 +144,13 @@ struct Preferences: Codable {
     var showDockIcon: Bool = false               // Show icon in Dock (menu bar always visible)
     var startAtLogin: Bool = false
     var menuBarIconStyle: MenuBarIconStyle = .x  // Icon style for menubar
-    var useVietnameseMenubarIcon: Bool = false   // Use V icon when Vietnamese mode - PHTV Feature
-    var menuBarIconSize: Double = 18.0           // Menu bar icon size in pixels - PHTV Feature
+    var useVietnameseMenubarIcon: Bool = false   // Use V icon when Vietnamese mode
+    var menuBarIconSize: Double = 18.0           // Menu bar icon size in pixels
     
     // Excluded apps - apps where Vietnamese input is disabled
     var excludedApps: [ExcludedApp] = []
     
-    // SendKeyStepByStep apps - PHTV Feature
+    // SendKeyStepByStep apps
     var sendKeyStepByStepApps: [SendKeyStepByStepApp] = []
 }
 

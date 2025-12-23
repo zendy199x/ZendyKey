@@ -26,6 +26,7 @@
 		A100000A /* ZKCharacterInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000A /* ZKCharacterInjector.swift */; };
 		A100000B /* ZKKeyboardEventHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000B /* ZKKeyboardEventHandler.swift */; };
 		A100000C /* ZKPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000C /* ZKPreferences.swift */; };
+		A1000033 /* ZKPerAppCodeTableManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000033 /* ZKPerAppCodeTableManager.swift */; };
 		A100000D /* ZKStatusBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000D /* ZKStatusBarManager.swift */; };
 		A100000E /* ZKDebugWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000E /* ZKDebugWindowController.swift */; };
 		A100000F /* ZKPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000F /* ZKPreferencesView.swift */; };
@@ -67,6 +68,8 @@
 		D8A9DF40239A47DBFC4DF971 /* ZKOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB920062BEF7A44A5DB6A04 /* ZKOnboardingView.swift */; };
 		E1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */; };
 		E2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */; };
+		E3456789012CDEF012345678 /* ZKStatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3456789012CDEF012345678 /* ZKStatisticsManager.swift */; };
+		E4567890123DEF0123456789 /* ZKStatisticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4567890123DEF0123456789 /* ZKStatisticsSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -87,6 +90,7 @@
 		A200000A /* ZKCharacterInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKCharacterInjector.swift; sourceTree = "<group>"; };
 		A200000B /* ZKKeyboardEventHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKKeyboardEventHandler.swift; sourceTree = "<group>"; };
 		A200000C /* ZKPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKPreferences.swift; sourceTree = "<group>"; };
+		A2000033 /* ZKPerAppCodeTableManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKPerAppCodeTableManager.swift; sourceTree = "<group>"; };
 		A200000D /* ZKStatusBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKStatusBarManager.swift; sourceTree = "<group>"; };
 		A200000E /* ZKDebugWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKDebugWindowController.swift; sourceTree = "<group>"; };
 		A200000F /* ZKPreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKPreferencesView.swift; sourceTree = "<group>"; };
@@ -133,6 +137,8 @@
 		DBB920062BEF7A44A5DB6A04 /* ZKOnboardingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKOnboardingView.swift; sourceTree = "<group>"; };
 		F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKHotkeyComponents.swift; sourceTree = "<group>"; };
 		F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSendKeyStepByStepAppsView.swift; sourceTree = "<group>"; };
+		F3456789012CDEF012345678 /* ZKStatisticsManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKStatisticsManager.swift; sourceTree = "<group>"; };
+		F4567890123DEF0123456789 /* ZKStatisticsSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKStatisticsSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -238,6 +244,7 @@
 				18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
 				F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */,
 				F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */,
+				F4567890123DEF0123456789 /* ZKStatisticsSection.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -265,6 +272,8 @@
 				A2000004 /* ZKCharacterMap.swift */,
 				A2000005 /* ZKVowelSequenceValidator.swift */,
 				A200000C /* ZKPreferences.swift */,
+				A2000033 /* ZKPerAppCodeTableManager.swift */,
+				F3456789012CDEF012345678 /* ZKStatisticsManager.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -406,6 +415,7 @@
 				A100000A /* ZKCharacterInjector.swift in Sources */,
 				A100000B /* ZKKeyboardEventHandler.swift in Sources */,
 				A100000C /* ZKPreferences.swift in Sources */,
+				A1000033 /* ZKPerAppCodeTableManager.swift in Sources */,
 				A1000017 /* ZKEngineSettings.swift in Sources */,
 				A1000018 /* ZKEngineAdvanced.swift in Sources */,
 				A1000028 /* ZKDebugLogger.swift in Sources */,
@@ -438,6 +448,8 @@
 				C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */,
 				E1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift in Sources */,
 				E2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift in Sources */,
+				E3456789012CDEF012345678 /* ZKStatisticsManager.swift in Sources */,
+				E4567890123DEF0123456789 /* ZKStatisticsSection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

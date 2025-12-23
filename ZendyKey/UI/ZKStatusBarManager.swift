@@ -116,7 +116,7 @@ class ZKStatusBarManager: ObservableObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
         
-        // Header with logo, app info, and toggle switch (inspired by GoNhanh)
+        // Header with logo, app info, and toggle switch
         let headerItem = NSMenuItem()
         headerItem.view = createHeaderView()
         headerItem.tag = 0

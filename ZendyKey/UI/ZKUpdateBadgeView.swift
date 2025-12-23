@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Update status badge with spinning animation
-//  Inspired by GoNhanh's UpdateBadgeView
 //
 
 import SwiftUI

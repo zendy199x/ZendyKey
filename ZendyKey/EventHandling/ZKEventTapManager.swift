@@ -24,7 +24,7 @@ class ZKEventTapManager {
     var toggleHotkey: Hotkey?
     var onToggleHotkey: (() -> Void)?
     
-    // Pause key configuration (PHTV Feature)
+    // Pause key configuration
     var pauseKeyEnabled: Bool = false
     var pauseKeyCode: UInt16 = 58  // Default: Option key
     var onPauseKeyDown: (() -> Void)?
@@ -42,7 +42,7 @@ class ZKEventTapManager {
         var hasTriggered: Bool = false
     }
     
-    // Pause key state tracking (PHTV Feature)
+    // Pause key state tracking
     private var pauseKeyState: PauseKeyState = PauseKeyState()
     
     private struct PauseKeyState {
@@ -220,7 +220,7 @@ class ZKEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
-        // PHTV Feature: Pause key handling (hold to temporarily switch to English)
+        // Pause key handling (hold to temporarily switch to English)
         if pauseKeyEnabled && type == .flagsChanged {
             let keyCode = event.keyCode
             

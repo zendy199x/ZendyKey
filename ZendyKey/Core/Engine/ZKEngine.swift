@@ -56,7 +56,7 @@ class ZKEngine {
     var vQuickEndConsonant = 0     // 0: No, 1: Yes (g->ng, h->nh, k->ch)
     var vTempOffOpenKey = 0        // 0: No, 1: Yes (temp off engine with Option key)
     
-    // MARK: - New Settings (inspired by GoNhanh)
+    // MARK: - New Settings
     
     /// Enable ESC key to restore raw ASCII (undo Vietnamese transforms)
     /// When true, pressing ESC restores original keystrokes
@@ -84,8 +84,8 @@ class ZKEngine {
     
     // MARK: - Internal State (from Engine.cpp)
     // Note: Using internal access for extension support
-    
-    var typingWord = [UInt32](repeating: 0, count: MAX_BUFF)
+    // PERFORMANCE: Using ContiguousArray for better cache locality in hot path
+    var typingWord = ContiguousArray<UInt32>(repeating: 0, count: MAX_BUFF)
     var index: UInt8 = 0
     var longWordHelper = [UInt32]()
     var typingStates = [[UInt32]]()
@@ -121,7 +121,7 @@ class ZKEngine {
     /// Used for backspace-after-space restore feature
     var spacesAfterCommit = 0
     
-    // MARK: - GoNhanh-Inspired Advanced State Tracking
+    // MARK: - Advanced State Tracking
     
     /// Pending breve position: position of 'a' that has deferred breve
     /// Breve on 'a' in open syllables (like "raw") is invalid Vietnamese
@@ -549,7 +549,7 @@ class ZKEngine {
             index = 0
         }
         
-        // Upper case first char - Enhanced auto-capitalize (inspired by GoNhanh)
+        // Upper case first char - Enhanced auto-capitalize
         // Triggers: . ! ? Enter
         // Neutral keys (don't reset pending): quotes, brackets, parentheses
         if vUpperCaseFirstChar == 1 {
@@ -2847,6 +2847,10 @@ extension ZKEngine {
         var backspaceCount: Int = 0
         var newCharacters: [ZKCharacter] = []
         
+        // Statistics tracking properties
+        var isMacroReplacement: Bool = false
+        var isAutoRestore: Bool = false
+        
         // Static helper for common cases
         static let doNothing = ProcessResult(shouldConsume: false, backspaceCount: 0, newCharacters: [])
     }
@@ -2854,7 +2858,24 @@ extension ZKEngine {
     // Alias for compatibility
     typealias ProcessingResult = ProcessResult
     
+    /// Get the last macro key that was matched (for statistics)
+    func getLastMacroKey() -> String {
+        guard !hookState.macroKey.isEmpty else { return "" }
+        
+        var result = ""
+        for keyData in hookState.macroKey {
+            let keyCode = UInt16(keyData & ZKEngine.CHAR_MASK)
+            if let char = keyCodeToCharacter(keyCode) {
+                let isCaps = (keyData & ZKEngine.CAPS_MASK) != 0
+                result.append(isCaps ? Character(String(char).uppercased()) : char)
+            }
+        }
+        return result
+    }
+    
     /// Process a key press
+    /// PERFORMANCE: Marked inline for hot-path optimization
+    @inline(__always)
     func processKey(character: Character, keyCode: CGKeyCode, isUppercase: Bool) -> ProcessResult {
         let result = handleKeyEvent(keyCode: keyCode, character: character, isUppercase: isUppercase, hasOtherModifier: false)
         return convertHookStateToResult(result, currentKeyCode: keyCode, currentCharacter: character, isUppercase: isUppercase)
@@ -3126,6 +3147,10 @@ extension ZKEngine {
                                hookState.code == UInt8(vReplaceMacro)
         
         result.backspaceCount = hookState.backspaceCount
+        
+        // Set statistics flags
+        result.isMacroReplacement = hookState.code == UInt8(vReplaceMacro)
+        result.isAutoRestore = hookState.code == UInt8(vRestore) || hookState.code == UInt8(vRestoreAndStartNewSession)
 
         // For macro replacement, use macroData directly (no length limit)
         if hookState.code == UInt8(vReplaceMacro) && !hookState.macroData.isEmpty {

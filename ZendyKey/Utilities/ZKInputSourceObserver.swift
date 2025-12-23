@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Observes input source changes and auto-enables/disables ZendyKey
-//  Inspired by GoNhanh's InputSourceManager
 //
 
 import Foundation
@@ -51,6 +50,21 @@ final class ZKInputSourceObserver {
     /// Callback when input source changes
     var onInputSourceChanged: ((Bool) -> Void)?
     
+    // MARK: - Other Language Mode (OpenKey vOtherLanguage)
+    
+    /// Saved Vietnamese mode state before switching to non-Latin input source
+    private var savedVietnameseModeBeforeNonLatin: Bool?
+    
+    /// Whether we're currently in a non-Latin input source
+    private var wasNonLatinInputSource: Bool = false
+    
+    /// Callback to restore Vietnamese mode
+    /// Parameters: (shouldRestoreMode: Bool, wasVietnameseModeEnabled: Bool)
+    var onRestoreVietnameseMode: ((Bool) -> Void)?
+    
+    /// Callback to get current Vietnamese mode state
+    var getCurrentVietnameseMode: (() -> Bool)?
+    
     private init() {}
     
     func start() {
@@ -95,7 +109,12 @@ final class ZKInputSourceObserver {
         
         // Get display character from input source
         currentDisplayChar = getDisplayChar(from: source, id: currentId)
-        isAllowedInputSource = isInputSourceAllowed(currentId)
+        let isAllowed = isInputSourceAllowed(currentId)
+        
+        // Handle "Other Language Mode" (OpenKey vOtherLanguage feature)
+        handleOtherLanguageMode(isNowAllowed: isAllowed)
+        
+        isAllowedInputSource = isAllowed
         
         // Notify observers
         DispatchQueue.main.async { [weak self] in
@@ -106,6 +125,44 @@ final class ZKInputSourceObserver {
                 "displayChar": self.currentDisplayChar
             ])
         }
+    }
+    
+    /// Handle the "Other Language Mode" feature (OpenKey vOtherLanguage)
+    /// When switching FROM Latin TO non-Latin: save current Vietnamese mode
+    /// When switching FROM non-Latin TO Latin: restore saved Vietnamese mode
+    private func handleOtherLanguageMode(isNowAllowed: Bool) {
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        guard prefs.preserveVietnameseModeWithOtherLanguage else { return }
+        
+        let isNonLatinNow = !isNowAllowed
+        let wasNonLatin = wasNonLatinInputSource
+        
+        // Update state
+        wasNonLatinInputSource = isNonLatinNow
+        
+        if !wasNonLatin && isNonLatinNow {
+            // Switching FROM Latin TO non-Latin: save current Vietnamese mode
+            if let getCurrentMode = getCurrentVietnameseMode {
+                savedVietnameseModeBeforeNonLatin = getCurrentMode()
+                logDebug("🌍 Other Language Mode: Saved Vietnamese mode = \(savedVietnameseModeBeforeNonLatin ?? false)")
+            }
+        } else if wasNonLatin && !isNonLatinNow {
+            // Switching FROM non-Latin TO Latin: restore saved Vietnamese mode
+            if let savedMode = savedVietnameseModeBeforeNonLatin {
+                logDebug("🌍 Other Language Mode: Restoring Vietnamese mode = \(savedMode)")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onRestoreVietnameseMode?(savedMode)
+                }
+                // Clear saved state
+                savedVietnameseModeBeforeNonLatin = nil
+            }
+        }
+    }
+    
+    private func logDebug(_ message: String) {
+        #if DEBUG
+        print("[ZKInputSourceObserver] \(message)")
+        #endif
     }
     
     private func isInputSourceAllowed(_ id: String) -> Bool {

@@ -324,12 +324,15 @@ class AppBehaviorDetector {
     
     // MARK: - Cache
     
+    // PERFORMANCE: TTL-based cache with 100ms expiry (inspired by PHTV)
     private var cachedBundleId: String?
     private var cachedWindowTitle: String?
     private var cachedMatchedRule: WindowTitleRule?
     private var cachedBehavior: AppBehavior?
     private var cachedIMKitBehavior: IMKitBehavior?
     private var cachedInjectionMethod: InjectionMethodInfo?
+    private var cacheTimestamp: CFAbsoluteTime = 0
+    private let cacheTTL: CFAbsoluteTime = 0.1  // 100ms TTL
     
     // MARK: - Window Title Rules
     
@@ -559,13 +562,16 @@ class AppBehaviorDetector {
             return .standard
         }
         
-        // Check cache
-        if bundleId == cachedBundleId, let behavior = cachedBehavior {
+        // Check cache with TTL (100ms expiry for high-speed typing)
+        let now = CFAbsoluteTimeGetCurrent()
+        if bundleId == cachedBundleId, let behavior = cachedBehavior,
+           (now - cacheTimestamp) < cacheTTL {
             return behavior
         }
         
         cachedBundleId = bundleId
         cachedBehavior = detectBehavior(for: bundleId)
+        cacheTimestamp = CFAbsoluteTimeGetCurrent()
         
         return cachedBehavior ?? .standard
     }
@@ -637,6 +643,7 @@ class AppBehaviorDetector {
         cachedBehavior = nil
         cachedIMKitBehavior = nil
         cachedInjectionMethod = nil
+        cacheTimestamp = 0  // Reset timestamp to force fresh detection
     }
     
     // MARK: - Window Title Detection

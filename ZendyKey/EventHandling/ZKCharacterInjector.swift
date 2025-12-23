@@ -146,20 +146,22 @@ class ZKCharacterInjector {
             }
         }
         
-        // Settle time
-        let settleTime: UInt32 = (method == .slow) ? 20000 : 5000
+        // Settle time - PERFORMANCE: Reduced thanks to semaphore sync
+        // Original: 20000/5000μs, Now: 8000/2000μs
+        let settleTime: UInt32 = (method == .slow) ? 8000 : 2000
         usleep(settleTime)
         
         debugCallback?("injectSync: complete")
     }
     
     /// Internal: Send backspace key (no semaphore)
+    /// PERFORMANCE: Reduced delay from 1000μs to 500μs
     private func sendBackspaceKey(codeTable: CodeTable, proxy: CGEventTapProxy) {
         let deleteKeyCode: CGKeyCode = 0x33
         let backspaceCount = codeTable.requiresDoubleBackspace ? 2 : 1
         for _ in 0..<backspaceCount {
             sendKeyPress(deleteKeyCode, proxy: proxy)
-            usleep(1000)
+            usleep(500)  // PERF: Reduced from 1000μs
         }
     }
     

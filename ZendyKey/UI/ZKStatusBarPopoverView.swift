@@ -28,6 +28,13 @@ struct ZKStatusBarPopoverView: View {
             Divider()
                 .background(ZKColors.glassBorder)
             
+            // Quick statistics section
+            quickStatsSection
+                .padding(.vertical, 8)
+            
+            Divider()
+                .background(ZKColors.glassBorder)
+            
             // Quick settings
             settingsSection
                 .padding(.vertical, 8)
@@ -155,6 +162,112 @@ struct ZKStatusBarPopoverView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
         }
+    }
+    
+    // MARK: - Quick Stats Section
+    
+    private var quickStatsSection: some View {
+        VStack(spacing: 8) {
+            // Header
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(ZKColors.accentGradient)
+                
+                Text("Tốc độ gõ")
+                    .font(ZKTypography.caption)
+                    .foregroundColor(ZKColors.textSecondary)
+                
+                Spacer()
+                
+                Button(action: { viewModel.openStatistics() }) {
+                    Text("Xem chi tiết")
+                        .font(.system(size: 10))
+                        .foregroundColor(ZKColors.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            
+            // Speed display
+            HStack(spacing: 16) {
+                // WPM
+                VStack(alignment: .center, spacing: 2) {
+                    Text("\(Int(ZKStatisticsManager.shared.wordsPerMinute))")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "38EF7D"), Color(hex: "11998E")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("từ/phút")
+                        .font(.system(size: 9))
+                        .foregroundColor(ZKColors.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                
+                Divider()
+                    .frame(height: 30)
+                
+                // CPM
+                VStack(alignment: .center, spacing: 2) {
+                    Text("\(Int(ZKStatisticsManager.shared.charsPerMinute))")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "667EEA"), Color(hex: "764BA2")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    Text("ký tự/phút")
+                        .font(.system(size: 9))
+                        .foregroundColor(ZKColors.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                
+                Divider()
+                    .frame(height: 30)
+                
+                // Today keystrokes
+                VStack(alignment: .center, spacing: 2) {
+                    Text(formatCompactNumber(ZKStatisticsManager.shared.todayKeystrokes))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(ZKColors.textPrimary)
+                    
+                    Text("hôm nay")
+                        .font(.system(size: 9))
+                        .foregroundColor(ZKColors.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.green.opacity(0.08), Color.blue.opacity(0.05)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            )
+            .padding(.horizontal, 12)
+        }
+    }
+    
+    private func formatCompactNumber(_ number: Int) -> String {
+        if number >= 1000000 {
+            return String(format: "%.1fM", Double(number) / 1000000)
+        } else if number >= 1000 {
+            return String(format: "%.1fK", Double(number) / 1000)
+        }
+        return "\(number)"
     }
     
     // MARK: - Settings Section

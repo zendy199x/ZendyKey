@@ -204,6 +204,29 @@ struct ZKCharacter: Equatable, Hashable {
 
         return ""
     }
+    
+    /// Check if this character is a Vietnamese-specific character
+    /// (has diacritics, special vowels, or is đ/Đ)
+    var isVietnameseChar: Bool {
+        // Check for đ consonant
+        if consonant == .dd {
+            return true
+        }
+        
+        // Check for vowel with tone
+        if vowel != nil && tone != .none {
+            return true
+        }
+        
+        // Check for special Vietnamese vowels (circumflex, breve, horn)
+        if let v = vowel {
+            if v.hasCircumflex || v.hasBreve || v.hasHorn {
+                return true
+            }
+        }
+        
+        return false
+    }
 }
 
 // MARK: - Code Tables

@@ -144,7 +144,47 @@ class ZKStatusBarViewModel: ObservableObject {
         prefs.codeTable = table
         ZKSharedSettings.shared.savePreferences(prefs)
         
+        // Save code table for current app (Remember Code Table Per App - OpenKey vRememberCode)
+        saveCodeTableForCurrentApp()
+        
         log("✅ CodeTable set to \(table.displayName)")
+    }
+    
+    /// Save current code table for the active app (for Remember Code Table Per App feature)
+    private func saveCodeTableForCurrentApp() {
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        guard prefs.rememberCodeTablePerApp else { return }
+        
+        guard let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
+        
+        // Skip saving for ZendyKey itself
+        if bundleId.contains("ZendyKey") { return }
+        
+        ZKPerAppCodeTableManager.shared.setCodeTable(forBundleId: bundleId, codeTable: currentCodeTable.rawValue)
+        log("📝 Per-App Code Table: Saved '\(bundleId)' → \(currentCodeTable.displayName)")
+    }
+    
+    /// Restore code table for the given app (called when app switches)
+    func restoreCodeTableForApp(bundleId: String) {
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        guard prefs.rememberCodeTablePerApp else { return }
+        
+        // Skip for ZendyKey itself
+        if bundleId.contains("ZendyKey") { return }
+        
+        if let savedCodeTableRaw = ZKPerAppCodeTableManager.shared.getCodeTable(forBundleId: bundleId),
+           let savedCodeTable = CodeTable(rawValue: savedCodeTableRaw),
+           savedCodeTable != currentCodeTable {
+            log("🔄 Per-App Code Table: Restoring '\(bundleId)' → \(savedCodeTable.displayName)")
+            
+            currentCodeTable = savedCodeTable
+            keyboardHandler?.codeTable = savedCodeTable
+            
+            // Also update preferences
+            var newPrefs = ZKSharedSettings.shared.loadPreferences()
+            newPrefs.codeTable = savedCodeTable
+            ZKSharedSettings.shared.savePreferences(newPrefs)
+        }
     }
     
     func openPreferences() {
@@ -161,6 +201,16 @@ class ZKStatusBarViewModel: ObservableObject {
     
     func quit() {
         NSApplication.shared.terminate(nil)
+    }
+    
+    func openStatistics() {
+        // Open settings with statistics section selected
+        if #available(macOS 13.0, *) {
+            ZKAppDelegate.shared?.openSettingsWithSection(.statistics)
+        } else {
+            // Fallback for older macOS - just open preferences
+            ZKAppDelegate.shared?.openPreferences()
+        }
     }
     
     func updateHotkeyDisplay(_ hotkey: Hotkey? = nil) {

@@ -2,7 +2,7 @@
 //  ZKHotkeyComponents.swift
 //  ZendyKey
 //
-//  Reusable hotkey configuration components inspired by PHTV
+//  Reusable hotkey configuration components
 //  ModifierKeyButton, PauseKeyButton, PauseKeyConfigSection
 //
 

@@ -19,6 +19,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case macro = "Macro"
     case convertTool = "Chuyển đổi"
     case appearance = "Hệ thống"
+    case statistics = "Thống kê"
     case about = "Giới thiệu"
 
     var id: String { rawValue }
@@ -26,6 +27,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .statistics: return "chart.bar.xaxis"
         case .quickTyping: return "keyboard"
         case .advanced: return "slider.horizontal.3"
         case .inputSources: return "globe"
@@ -135,6 +137,8 @@ struct ZKSettingsView: View {
                     switch selectedSection {
                     case .general:
                         GeneralSettingsSection(viewModel: viewModel)
+                    case .statistics:
+                        ZKStatisticsSection()
                     case .quickTyping:
                         QuickTypingSettingsSection(viewModel: viewModel)
                     case .advanced:
@@ -411,6 +415,28 @@ struct AdvancedSettingsSection: View {
                             }
                             .padding(.leading, 20)  // Indent sub-option
                         }
+                        
+                        Divider()
+                        
+                        // Remember Code Table Per App (OpenKey vRememberCode)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Nhớ bảng mã theo ứng dụng", isOn: $viewModel.preferences.rememberCodeTablePerApp)
+
+                            Text("Tự động chuyển bảng mã (VNI/TCVN3/Unicode) theo từng app")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Divider()
+                        
+                        // Preserve Vietnamese with Other Language (OpenKey vOtherLanguage)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Giữ trạng thái khi dùng bàn phím khác", isOn: $viewModel.preferences.preserveVietnameseModeWithOtherLanguage)
+
+                            Text("Giữ chế độ tiếng Việt khi chuyển sang keyboard Hàn/Nhật/Trung, sau đó tự động khôi phục")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
@@ -425,7 +451,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                // PHTV Feature: Compatibility Settings
+                // Compatibility Settings
                 SettingsGroup(title: "Tương thích") {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -454,15 +480,15 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                // PHTV Feature: Per-App SendKeyStepByStep  
+                // Per-App SendKeyStepByStep  
                 SettingsGroup(title: "Ứng dụng cần gửi từng phím") {
                     SendKeyStepByStepAppsSettingsSection(viewModel: viewModel)
                 }
                 
-                // PHTV Feature: Pause Key Configuration
+                // Pause Key Configuration
                 ZKPauseKeyConfigSection(viewModel: viewModel)
                 
-                // PHTV Feature: Restore Key Configuration  
+                // Restore Key Configuration  
                 ZKRestoreKeyConfigSection(viewModel: viewModel)
                 
                 // IMKit Mode (Experimental) - Placed before Debug
@@ -570,8 +596,10 @@ struct AdvancedSettingsSection: View {
 
 // MARK: - Appearance Settings Section
 
+@available(macOS 13.0, *)
 struct AppearanceSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
+    @Environment(\.colorScheme) private var colorScheme
     @State private var hasAccessibilityPermission = AXIsProcessTrusted()
     @State private var showResetConfirmation = false
     
@@ -635,7 +663,7 @@ struct AppearanceSettingsSection: View {
                     }
                 }
                 
-                // Menu Bar Icon Settings (PHTV Feature)
+                // Menu Bar Icon Settings
                 SettingsGroup(title: "Icon thanh Menu") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Icon size slider
@@ -689,7 +717,7 @@ struct AppearanceSettingsSection: View {
                     Toggle("Khởi động cùng hệ thống", isOn: $viewModel.preferences.startAtLogin)
                 }
                 
-                // Beep Volume Slider (PHTV Feature)
+                // Beep Volume Slider
                 if viewModel.preferences.beepOnToggle {
                     SettingsGroup(title: "Âm lượng") {
                         VStack(alignment: .leading, spacing: 8) {
@@ -711,7 +739,7 @@ struct AppearanceSettingsSection: View {
                     }
                 }
                 
-                // Reset to Defaults (PHTV Feature)
+                // Reset to Defaults
                 SettingsGroup(title: "Khôi phục mặc định") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Đặt lại tất cả cài đặt về mặc định. Dữ liệu macro sẽ được giữ nguyên.")
@@ -737,14 +765,22 @@ struct AppearanceSettingsSection: View {
         .onReceive(permissionCheckTimer) { _ in
             hasAccessibilityPermission = AXIsProcessTrusted()
         }
-        .alert("Khôi phục mặc định?", isPresented: $showResetConfirmation) {
-            Button("Hủy", role: .cancel) { }
-            Button("Khôi phục", role: .destructive) {
-                resetToDefaults()
+        .overlay {
+            if showResetConfirmation {
+                ZKSettingsResetConfirmationOverlay(
+                    colorScheme: colorScheme,
+                    onConfirm: {
+                        resetToDefaults()
+                        showResetConfirmation = false
+                    },
+                    onCancel: {
+                        showResetConfirmation = false
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
-        } message: {
-            Text("Tất cả cài đặt sẽ được đặt lại về mặc định. Dữ liệu macro sẽ được giữ nguyên. Hành động này không thể hoàn tác.")
         }
+        .animation(.spring(response: 0.3), value: showResetConfirmation)
     }
     
     private func openAccessibilitySettings() {
@@ -937,7 +973,7 @@ struct AboutSettingsSection: View {
                 Spacer(minLength: 20)
                 
                 // Copyright
-                Text("Made with ❤️ in Vietnam • Inspired by Openkey & Unikey")
+                Text("Made with Zendy199x in Vietnam")
                     .font(.caption2)
                     .foregroundColor(ZKColors.textTertiary)
                     .padding(.bottom, 16)
@@ -950,7 +986,7 @@ struct AboutSettingsSection: View {
     }
 }
 
-// MARK: - About Info Card Component (PHTV-inspired)
+// MARK: - About Info Card Component
 
 struct AboutInfoCard: View {
     let icon: String
@@ -1648,9 +1684,107 @@ class InputSourcesViewModel: ObservableObject {
     }
 }
 
+// MARK: - Settings Reset Confirmation Overlay
+
+@available(macOS 13.0, *)
+struct ZKSettingsResetConfirmationOverlay: View {
+    let colorScheme: ColorScheme
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var isHoveringConfirm = false
+    @State private var isHoveringCancel = false
+    
+    var body: some View {
+        ZStack {
+            // Backdrop
+            Rectangle()
+                .fill(AdaptiveColors.cardBackground(for: colorScheme).opacity(0.9))
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
+                }
+            
+            // Dialog card
+            VStack(spacing: 20) {
+                // Header
+                VStack(spacing: 8) {
+                    GradientIcon(systemName: "arrow.counterclockwise", size: 28)
+                    
+                    Text("Khôi phục mặc định?")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(AdaptiveColors.textPrimary(for: colorScheme))
+                    
+                    Text("Tất cả cài đặt sẽ được đặt lại về mặc định.\nDữ liệu macro sẽ được giữ nguyên.\nHành động này không thể hoàn tác.")
+                        .font(ZKTypography.body)
+                        .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
+                        .multilineTextAlignment(.center)
+                }
+                
+                // Buttons
+                VStack(spacing: 10) {
+                    // Confirm
+                    Button(action: onConfirm) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 13))
+                            Text("Khôi phục")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.red, Color.pink],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        )
+                        .foregroundColor(.white)
+                        .scaleEffect(isHoveringConfirm ? 1.02 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringConfirm = $0 }
+                    
+                    // Cancel
+                    Button(action: onCancel) {
+                        Text("Hủy")
+                            .font(.system(size: 14, weight: .medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(AdaptiveColors.glassBackground(for: colorScheme))
+                            )
+                            .foregroundColor(AdaptiveColors.textSecondary(for: colorScheme))
+                            .scaleEffect(isHoveringCancel ? 1.02 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringCancel = $0 }
+                }
+            }
+            .padding(24)
+            .frame(width: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AdaptiveColors.cardBackground(for: colorScheme))
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.4 : 0.15), radius: 20, y: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AdaptiveColors.glassBorder(for: colorScheme), lineWidth: 1)
+            )
+        }
+    }
+}
+
 // MARK: - Preview
 
 @available(macOS 13.0, *)
 #Preview {
     ZKSettingsView()
 }
+

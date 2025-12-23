@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Advanced text injection with multiple methods
-//  Inspired by GoNhanh's TextInjector
 //
 
 import Cocoa

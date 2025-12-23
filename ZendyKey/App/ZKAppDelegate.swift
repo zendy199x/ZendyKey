@@ -127,7 +127,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Show onboarding on first launch
         showOnboardingIfNeeded()
         
-        // Silent update check after 3 seconds (like GoNhanh)
+        // Silent update check after 3 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.silentUpdateCheck()
         }
@@ -391,6 +391,12 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
     
+    /// Convenience method to open settings with specific section
+    @available(macOS 13.0, *)
+    func openSettingsWithSection(_ section: SettingsSection) {
+        openSettings(selectedSection: section)
+    }
+    
     func openLegacyPreferences(selectedTab: Int = 0) {
         // Close existing window if tab is different
         if let existingController = preferencesWindowController {
@@ -530,7 +536,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private func checkAndRequestPermissions() {
         guard let manager = eventTapManager else { return }
         
-        // Check if permission is already granted - skip everything if yes (like GoNhanh)
+        // Check if permission is already granted - skip everything if yes
         if manager.checkAccessibilityPermission() {
             debugWindowController?.logEvent("✅ Accessibility permission already granted - skipping prompt")
             return
@@ -831,11 +837,14 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         
         debugWindowController?.logEvent("🔍 Smart Switch check: enabled=\(handler.smartSwitchEnabled), vUseSmartSwitchKey=\(handler.engine.vUseSmartSwitchKey)")
         
-        guard handler.smartSwitchEnabled else { return }
-        
         // Get the new active app
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               let bundleId = app.bundleIdentifier else { return }
+        
+        // Handle per-app code table restore (OpenKey vRememberCode feature)
+        statusBarManager?.viewModel.restoreCodeTableForApp(bundleId: bundleId)
+        
+        guard handler.smartSwitchEnabled else { return }
         
         // Get current language from UI (StatusBar) - this is the source of truth
         let currentLanguage = statusBarManager?.viewModel.isVietnameseEnabled == true ? 1 : 0
@@ -1089,9 +1098,26 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Start input source observer
         ZKInputSourceObserver.shared.start()
         
+        // Setup callbacks for "Other Language Mode" feature (OpenKey vOtherLanguage)
+        // These callbacks enable saving Vietnamese mode when switching to non-Latin keyboards
+        // and restoring it when switching back to Latin keyboards
+        ZKInputSourceObserver.shared.getCurrentVietnameseMode = { [weak self] in
+            return self?.statusBarManager?.viewModel.isVietnameseEnabled ?? false
+        }
+        
+        ZKInputSourceObserver.shared.onRestoreVietnameseMode = { [weak self] savedMode in
+            guard let self = self else { return }
+            self.statusBarManager?.viewModel.setVietnameseEnabled(savedMode)
+            self.keyboardHandler?.setVietnamese(savedMode)
+            self.debugWindowController?.logEvent("🌍 Other Language Mode: Restored Vietnamese mode = \(savedMode)")
+        }
+        
         // Set callback to handle input source changes
         ZKInputSourceObserver.shared.onInputSourceChanged = { [weak self] isAllowed in
             guard let self = self else { return }
+            
+            // Update status bar to reflect input source allowed state
+            statusBarManager?.viewModel.isInputSourceAllowed = isAllowed
             
             // Check if auto-switch is enabled in preferences
             let prefs = ZKSharedSettings.shared.loadPreferences()
@@ -1104,6 +1130,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 // Non-Latin keyboard (Japanese/Korean/Chinese): auto-disable ZendyKey
                 // This prevents ZendyKey from interfering with other input methods
+                // Note: "Other Language Mode" feature will handle restoring the state when switching back
                 if statusBarManager?.viewModel.isVietnameseEnabled == true {
                     statusBarManager?.viewModel.setVietnameseEnabled(false)
                     debugWindowController?.logEvent("🔤 Non-Latin input source detected - ZendyKey auto-disabled")

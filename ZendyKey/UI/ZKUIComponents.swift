@@ -2,7 +2,7 @@
 //  ZKUIComponents.swift
 //  ZendyKey
 //
-//  Reusable UI Components inspired by GoNhanh
+//  Reusable UI Components
 //  Note: VisualEffectBackground is defined in ZKDesignSystem.swift
 //
 
