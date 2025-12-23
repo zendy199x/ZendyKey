@@ -29,6 +29,36 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "📦 Building ZendyKey version: $VERSION"
 
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          # Get previous tag for changelog
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "📋 Previous tag: $PREV_TAG"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG="${{ steps.prev_tag.outputs.PREV_TAG }}"
+          
+          echo "📝 Generating changelog..."
+          
+          if [ -n "$PREV_TAG" ]; then
+            # Get commits between previous tag and current
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "")
+          else
+            # First release - get recent commits
+            CHANGELOG=$(git log -20 --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "")
+          fi
+          
+          # Output changelog
+          {
+            echo "content<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
       - name: Build Release
         run: |
           echo "🔨 Building ZendyKey..."
@@ -65,7 +95,7 @@ jobs:
           # Copy app
           cp -R "$APP_PATH" "$STAGING_DIR/"
           
-          # Remove quarantine attribute
+          # Remove ALL extended attributes (including quarantine)
           xattr -cr "$STAGING_DIR/ZendyKey.app" 2>/dev/null || true
           
           # Create Applications symlink
@@ -81,6 +111,9 @@ jobs:
           # Generate checksum
           shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
           
+          # Store checksum in env for release notes
+          echo "CHECKSUM=$(cat $DMG_NAME.sha256)" >> $GITHUB_ENV
+          
           # Clean up
           rm -rf "$STAGING_DIR"
           
@@ -93,8 +126,8 @@ jobs:
           # Fetch tag with annotation
           git fetch origin tag ${{ github.ref_name }} --force 2>/dev/null || true
           
-          # Get message from annotated tag
-          TAG_MSG=$(git for-each-ref --format='%(contents)' refs/tags/${{ github.ref_name }} 2>/dev/null || echo "")
+          # Get message from annotated tag (skip first line which is tag name)
+          TAG_MSG=$(git for-each-ref --format='%(contents:body)' refs/tags/${{ github.ref_name }} 2>/dev/null || echo "")
           
           # Output for next step
           {
@@ -116,6 +149,12 @@ jobs:
             
             ---
             
+            ### 📋 Changelog
+            
+            ${{ steps.changelog.outputs.content }}
+            
+            ---
+            
             ### 📥 Hướng dẫn cài đặt
             
             1. Tải file `ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg`
@@ -123,22 +162,28 @@ jobs:
             3. Mở **System Settings** → **Privacy & Security** → **Accessibility**
             4. Bật quyền cho **ZendyKey**
             
-            ### ⚠️ Nếu macOS báo "App cannot be opened"
+            ### ⚠️ Lỗi "ZendyKey is damaged and can't be opened"
             
-            Chạy lệnh sau trong Terminal:
+            Do app chưa được notarize bởi Apple (không cần Developer Account), macOS sẽ chặn app lần đầu. 
+            
+            **Cách khắc phục:** Mở Terminal và chạy:
             ```bash
             xattr -cr /Applications/ZendyKey.app
             ```
             
-            Sau đó mở lại ZendyKey.
+            Hoặc dùng [Homebrew](https://brew.sh):
+            ```bash
+            brew install --cask zendy199x/tap/zendykey
+            ```
             
             ---
             
             **Checksum (SHA-256):**
             ```
-            $(cat ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg.sha256 2>/dev/null || echo "N/A")
+            ${{ env.CHECKSUM }}
             ```
           draft: false
           prerelease: false
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
