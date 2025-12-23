@@ -16,6 +16,8 @@ class ZKStatusBarViewModel: ObservableObject {
     @Published var hotkeyDisplay = "⌘⇧V"
     @Published var hotkeyKeyEquivalent: KeyEquivalent = "v"
     @Published var hotkeyModifiers: EventModifiers = [.command, .shift]
+    @Published var updateStatus: ZKUpdateStatus = .idle
+    @Published var isInputSourceAllowed: Bool = true
     
     private weak var keyboardHandler: ZKKeyboardEventHandler?
     private weak var eventTapManager: ZKEventTapManager?
@@ -49,10 +51,30 @@ class ZKStatusBarViewModel: ObservableObject {
         keyboardHandler?.setVietnamese(isVietnameseEnabled)
         log("🔄 Vietnamese toggled: \(isVietnameseEnabled ? "ON" : "OFF")")
         
-        // Play beep sound if enabled
+        // Play toggle sound via SoundManager
+        ZKSoundManager.shared.playToggleSound(enabled: isVietnameseEnabled)
+        
+        // Show on-screen indicator if enabled
         let prefs = ZKSharedSettings.shared.loadPreferences()
-        if prefs.beepOnToggle {
-            NSSound.beep()
+        if prefs.showOnScreenIndicator {
+            ZKOnScreenIndicatorController.shared.show(isVietnamese: isVietnameseEnabled)
+        }
+        
+        // Save language for current app (Smart Switch)
+        saveLanguageForCurrentApp()
+    }
+    
+    /// Set Vietnamese enabled state directly (used by inline toggle in header)
+    func setVietnameseEnabled(_ enabled: Bool) {
+        guard enabled != isVietnameseEnabled else { return }
+        isVietnameseEnabled = enabled
+        keyboardHandler?.setVietnamese(enabled)
+        log("🔄 Vietnamese set to: \(enabled ? "ON" : "OFF")")
+        
+        // Show on-screen indicator if enabled
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        if prefs.showOnScreenIndicator {
+            ZKOnScreenIndicatorController.shared.show(isVietnamese: enabled)
         }
         
         // Save language for current app (Smart Switch)

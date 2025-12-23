@@ -92,12 +92,36 @@ class ZKStatusBarManager: ObservableObject {
             }
             .store(in: &cancellables)
         
+        // Observe update status changes
+        viewModel.$updateStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateUpdateMenuItem()
+            }
+            .store(in: &cancellables)
+        
+        // Observe Input Source changes (auto-update icon for non-Latin keyboards)
+        NotificationCenter.default.publisher(for: .zkInputSourceChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.log("📍 Input source changed - updating status icon")
+                self?.updateStatusIcon()
+            }
+            .store(in: &cancellables)
+        
         log("✅ Status bar setup complete")
     }
     
     private func createMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        
+        // Header with logo, app info, and toggle switch (inspired by GoNhanh)
+        let headerItem = NSMenuItem()
+        headerItem.view = createHeaderView()
+        headerItem.tag = 0
+        menu.addItem(headerItem)
+        menu.addItem(.separator())
         
         // Toggle Vietnamese
         // For modifier-only hotkeys, show the hotkey in the title instead of using keyEquivalent
@@ -122,8 +146,10 @@ class ZKStatusBarManager: ObservableObject {
         if !isModifierOnly {
             toggleItem.keyEquivalentModifierMask = convertToNSEventModifiers(viewModel.hotkeyModifiers)
         }
-        toggleItem.state = viewModel.isVietnameseEnabled ? .on : .off
+        // Use icon instead of checkmark state - aligns with other icons
+        toggleItem.state = .off
         toggleItem.tag = 1
+        toggleItem.image = NSImage(systemSymbolName: viewModel.isVietnameseEnabled ? "checkmark.circle.fill" : "circle", accessibilityDescription: nil)
         
         menu.addItem(.separator())
         
@@ -146,6 +172,7 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: ""
         )
         inputMethodItem.submenu = inputMethodMenu
+        inputMethodItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
         
         // Code Table submenu
         let codeTableMenu = NSMenu()
@@ -166,6 +193,7 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: ""
         )
         codeTableItem.submenu = codeTableMenu
+        codeTableItem.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: nil)
         
         menu.addItem(.separator())
         
@@ -176,6 +204,7 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: ""
         )
         macroItem.target = self
+        macroItem.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
         
         let convertItem = menu.addItem(
             withTitle: "Công cụ chuyển đổi...",
@@ -183,16 +212,20 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: ""
         )
         convertItem.target = self
+        convertItem.image = NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: nil)
         
         menu.addItem(.separator())
         
-        // Check for Updates
+        // Check for Updates - with dynamic status
+        let updateTitle = getUpdateMenuTitle()
         let updateItem = menu.addItem(
-            withTitle: "Kiểm tra cập nhật...",
+            withTitle: updateTitle,
             action: #selector(checkForUpdates),
             keyEquivalent: ""
         )
         updateItem.target = self
+        updateItem.tag = 100 // Tag for update item
+        updateItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)
         
         menu.addItem(.separator())
         
@@ -203,6 +236,19 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: ","
         )
         prefsItem.target = self
+        prefsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
+        
+        menu.addItem(.separator())
+        
+        // Version info (disabled, not clickable)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let versionItem = menu.addItem(
+            withTitle: "ZendyKey v\(version)",
+            action: nil,
+            keyEquivalent: ""
+        )
+        versionItem.isEnabled = false
+        versionItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
         
         menu.addItem(.separator())
         
@@ -213,6 +259,7 @@ class ZKStatusBarManager: ObservableObject {
             keyEquivalent: "q"
         )
         quitItem.target = self
+        quitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
         
         return menu
     }
@@ -225,6 +272,11 @@ class ZKStatusBarManager: ObservableObject {
         
         log("📋 updateMenu: currentInputMethod=\(viewModel.currentInputMethod.displayName)")
         
+        // Update header view (tag 0)
+        if let headerItem = menu.item(withTag: 0) {
+            headerItem.view = createHeaderView()
+        }
+        
         // Update toggle item
         if let toggleItem = menu.item(withTag: 1) {
             let prefs = ZKSharedSettings.shared.loadPreferences()
@@ -236,7 +288,9 @@ class ZKStatusBarManager: ObservableObject {
             } else {
                 toggleItem.title = baseTitle
             }
-            toggleItem.state = viewModel.isVietnameseEnabled ? .on : .off
+            // Use icon instead of checkmark state - aligns with other icons
+            toggleItem.state = .off
+            toggleItem.image = NSImage(systemSymbolName: viewModel.isVietnameseEnabled ? "checkmark.circle.fill" : "circle", accessibilityDescription: nil)
         }
         
         // Update input method submenu
@@ -331,43 +385,96 @@ class ZKStatusBarManager: ObservableObject {
     private func updateStatusIcon() {
         guard let button = statusItem?.button else { return }
         
-        // Determine icon text based on icon style and Vietnamese mode
-        let iconText: String
-        switch menuBarIconStyle {
-        case .x:
-            iconText = viewModel.isVietnameseEnabled ? "X" : "E"
-        case .v:
-            iconText = viewModel.isVietnameseEnabled ? "V" : "E"
+        let observer = ZKInputSourceObserver.shared
+        
+        if observer.isAllowedInputSource {
+            // ABC/Latin keyboard: show logo + emoji flag (🇻🇳/🇬🇧)
+            button.image = createLogoWithFlagIcon()
+        } else {
+            // Non-Latin keyboard (Japanese/Korean/Chinese): show character (あ/中/한)
+            button.image = createInputSourceIcon(char: observer.currentDisplayChar)
         }
+        button.title = ""
+    }
+    
+    /// Create logo + emoji flag icon for Latin keyboards
+    private func createLogoWithFlagIcon() -> NSImage {
+        let size = NSSize(width: 22, height: 22)
+        let isVietnamese = viewModel.isVietnameseEnabled
         
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 14, weight: .semibold),
-            .foregroundColor: NSColor.labelColor
-        ]
-        
-        let size = NSSize(width: 20, height: 20)
-        let image = NSImage(size: size, flipped: false) { rect in
-            // Vẽ viền trắng bao quanh
-            let borderRect = NSRect(x: 1.5, y: 1.5, width: size.width - 3, height: size.height - 3)
-            let borderPath = NSBezierPath(roundedRect: borderRect, xRadius: 2.5, yRadius: 2.5)
-            NSColor.white.setStroke()
-            borderPath.lineWidth = 1.0
-            borderPath.stroke()
+        let compositeImage = NSImage(size: size, flipped: false) { rect in
+            // Draw the main logo (scaled to fit with some padding for the flag)
+            if let logo = NSImage(named: "ZendyKeyLogo") {
+                let logoSize = NSSize(width: 16, height: 16)
+                let logoRect = NSRect(
+                    x: (size.width - logoSize.width) / 2 - 1,
+                    y: (size.height - logoSize.height) / 2 + 2,
+                    width: logoSize.width,
+                    height: logoSize.height
+                )
+                logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            }
             
-            // Vẽ chữ ở giữa
-            let textSize = (iconText as NSString).size(withAttributes: attributes)
-            let textRect = NSRect(
-                x: (size.width - textSize.width) / 2,
-                y: (size.height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
+            // Draw emoji flag at bottom-right corner
+            let flagEmoji = isVietnamese ? "🇻🇳" : "🇬🇧"
+            let flagFont = NSFont.systemFont(ofSize: 8)
+            let flagAttributes: [NSAttributedString.Key: Any] = [
+                .font: flagFont
+            ]
+            
+            let flagSize = (flagEmoji as NSString).size(withAttributes: flagAttributes)
+            let flagRect = NSRect(
+                x: size.width - flagSize.width - 1,
+                y: -1,
+                width: flagSize.width,
+                height: flagSize.height
             )
-            (iconText as NSString).draw(in: textRect, withAttributes: attributes)
+            (flagEmoji as NSString).draw(in: flagRect, withAttributes: flagAttributes)
+            
             return true
         }
         
+        // Not using template so we can show colored emoji
+        compositeImage.isTemplate = false
+        return compositeImage
+    }
+    
+    /// Create input source icon for non-Latin keyboards (あ/中/한)
+    /// Uses template image for automatic light/dark mode support
+    private func createInputSourceIcon(char: String) -> NSImage {
+        let width: CGFloat = 22
+        let height: CGFloat = 16
+        let image = NSImage(size: NSSize(width: width, height: height))
+        
+        image.lockFocus()
+        
+        // Draw rounded rect background (black for template)
+        let rect = NSRect(x: 0, y: 0, width: width, height: height)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        NSColor.black.setFill()
+        path.fill()
+        
+        // Cut out text as transparent
+        let font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black
+        ]
+        let textSize = char.size(withAttributes: attrs)
+        let textRect = NSRect(
+            x: (width - textSize.width) / 2,
+            y: (height - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        NSGraphicsContext.current?.compositingOperation = .destinationOut
+        char.draw(in: textRect, withAttributes: attrs)
+        
+        image.unlockFocus()
+        
+        // Template image: macOS auto-adjusts color for light/dark menu bar
         image.isTemplate = true
-        button.image = image
+        return image
     }
     
     func updateHotkeyDisplay(_ hotkey: Hotkey) {
@@ -379,6 +486,37 @@ class ZKStatusBarManager: ObservableObject {
         updateStatusIcon()
         log("🎨 Menu bar icon style updated to: \(style.rawValue)")
     }
+    
+    /// Create premium header view with glassmorphism, gradient toggle, and micro-interactions
+    private func createHeaderView() -> NSView {
+        let width: CGFloat = 260
+        let height: CGFloat = 60
+        
+        // Use SwiftUI for premium design
+        let headerContent = ZKMenuBarHeaderView(
+            isVietnameseEnabled: Binding(
+                get: { [weak self] in self?.viewModel.isVietnameseEnabled ?? true },
+                set: { [weak self] newValue in
+                    self?.viewModel.setVietnameseEnabled(newValue)
+                    ZKSoundManager.shared.playToggleSound(enabled: newValue)
+                    self?.updateStatusIcon()
+                    self?.updateMenu()
+                }
+            ),
+            inputMethodName: viewModel.currentInputMethod.displayName,
+            hotkeyDisplay: viewModel.hotkeyDisplay
+        )
+        
+        let hostingView = NSHostingView(rootView: headerContent)
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: height)
+        
+        // Wrap in NSView for menu item
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        containerView.addSubview(hostingView)
+        
+        return containerView
+    }
+
     
     private func rebuildMenu() {
         guard statusItem != nil else { return }
@@ -393,4 +531,23 @@ class ZKStatusBarManager: ObservableObject {
     }
     
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Update Status Helpers
+    
+    private func getUpdateMenuTitle() -> String {
+        switch viewModel.updateStatus {
+        case .idle: return "Kiểm tra cập nhật..."
+        case .checking: return "🔄 Đang kiểm tra..."
+        case .upToDate: return "✓ Đã cập nhật mới nhất"
+        case .available(let version): return "⬆ Có bản cập nhật v\(version)"
+        case .downloading(let progress): return "⬇ Đang tải... \(Int(progress * 100))%"
+        case .error: return "⚠️ Lỗi - thử lại"
+        }
+    }
+    
+    private func updateUpdateMenuItem() {
+        guard let menu = statusItem?.menu,
+              let updateItem = menu.item(withTag: 100) else { return }
+        updateItem.title = getUpdateMenuTitle()
+    }
 }

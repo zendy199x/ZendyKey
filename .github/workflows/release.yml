@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build Release
+        run: |
+          xcodebuild -scheme ZendyKey -configuration Release build \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create DMG
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/ZendyKey.app"
+          DMG_NAME="ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg"
+          
+          # Create temporary directory for DMG content
+          mkdir -p dmg_temp
+          cp -R "$APP_PATH" dmg_temp/
+          ln -s /Applications dmg_temp/Applications
+          
+          # Create DMG
+          hdiutil create -volname "ZendyKey" \
+            -srcfolder dmg_temp \
+            -ov -format UDZO \
+            "$DMG_NAME"
+          
+          # Generate checksum
+          shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ZendyKey-*.dmg
+            ZendyKey-*.dmg.sha256
+          body: |
+            ## ZendyKey v${{ steps.get_version.outputs.VERSION }}
+            
+            ### 📥 Cài đặt
+            1. Tải `ZendyKey-${{ steps.get_version.outputs.VERSION }}.dmg`
+            2. Mở file DMG và kéo ZendyKey vào Applications
+            3. Mở System Settings → Privacy & Security → Accessibility → Bật ZendyKey
+            
+            ### ⚠️ Nếu không mở được
+            ```bash
+            xattr -cr /Applications/ZendyKey.app
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

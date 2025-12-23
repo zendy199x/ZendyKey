@@ -3,9 +3,257 @@
 //  ZendyKey
 //
 //  Modern Design System with Glassmorphism, Animations, and Premium Styling
+//  Supports Dark/Light/System appearance modes
 //
 
 import SwiftUI
+import AppKit
+
+// MARK: - Appearance Mode
+
+enum AppearanceMode: String, CaseIterable, Codable {
+    case system = "Tự động"
+    case dark = "Tối"
+    case light = "Sáng"
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .dark: return .dark
+        case .light: return .light
+        }
+    }
+}
+
+// MARK: - Appearance Manager
+
+class AppearanceManager: ObservableObject {
+    static let shared = AppearanceManager()
+    
+    @Published var currentMode: AppearanceMode {
+        didSet {
+            UserDefaults.standard.set(currentMode.rawValue, forKey: "appAppearanceMode")
+            applyAppearance()
+        }
+    }
+    
+    private init() {
+        let savedMode = UserDefaults.standard.string(forKey: "appAppearanceMode") ?? AppearanceMode.system.rawValue
+        self.currentMode = AppearanceMode(rawValue: savedMode) ?? .system
+    }
+    
+    func applyAppearance() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let appearance: NSAppearance?
+            
+            switch self.currentMode {
+            case .system:
+                appearance = nil
+            case .dark:
+                appearance = NSAppearance(named: .darkAqua)
+            case .light:
+                appearance = NSAppearance(named: .aqua)
+            }
+            
+            // Apply to app level first (for new windows)
+            NSApp.appearance = appearance
+            
+            // Force update ALL windows including current one
+            for window in NSApp.windows {
+                window.appearance = appearance
+                window.invalidateShadow()
+                window.contentView?.needsDisplay = true
+                window.contentView?.needsLayout = true
+            }
+            
+            // Post notification for any SwiftUI views that need to react
+            NotificationCenter.default.post(name: .init("AppearanceDidChange"), object: self.currentMode)
+        }
+    }
+}
+
+// MARK: - Adaptive Colors (Light/Dark aware)
+
+struct AdaptiveColors {
+    @Environment(\.colorScheme) static var colorScheme
+    
+    // Glass backgrounds that adapt to light/dark mode
+    static func glassBackground(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03)
+    }
+    
+    static func glassBorder(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
+    }
+    
+    static func glassHighlight(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.15) : Color.white.opacity(0.6)
+    }
+    
+    static func cardBackground(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "1E1E2E") : Color(nsColor: .controlBackgroundColor)
+    }
+    
+    static func surfaceBackground(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(hex: "1A1A2E") : Color(nsColor: .windowBackgroundColor)
+    }
+    
+    static func textPrimary(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white : Color(nsColor: .labelColor)
+    }
+    
+    static func textSecondary(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.7) : Color(nsColor: .secondaryLabelColor)
+    }
+    
+    static func textTertiary(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.5) : Color(nsColor: .tertiaryLabelColor)
+    }
+}
+
+// MARK: - Visual Effect Background (Native macOS Blur)
+
+struct VisualEffectBackground: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
+    var state: NSVisualEffectView.State
+    
+    init(
+        material: NSVisualEffectView.Material = .sidebar,
+        blendingMode: NSVisualEffectView.BlendingMode = .behindWindow,
+        state: NSVisualEffectView.State = .active
+    ) {
+        self.material = material
+        self.blendingMode = blendingMode
+        self.state = state
+    }
+    
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = state
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+        nsView.state = state
+    }
+}
+
+// MARK: - Adaptive Glass Card
+
+struct AdaptiveGlassCard<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let padding: CGFloat
+    let cornerRadius: CGFloat
+    let content: Content
+    
+    init(padding: CGFloat = 16, cornerRadius: CGFloat = 16, @ViewBuilder content: () -> Content) {
+        self.padding = padding
+        self.cornerRadius = cornerRadius
+        self.content = content()
+    }
+    
+    var body: some View {
+        ZStack {
+            if colorScheme == .dark {
+                // Dark mode: Use colored glass effect
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.ultraThinMaterial)
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(Color.white.opacity(0.05))
+                    )
+            } else {
+                // Light mode: Use subtle shadow and white background
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+            }
+            
+            content
+                .padding(padding)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(
+                    colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05),
+                    lineWidth: 1
+                )
+        )
+    }
+}
+
+// MARK: - Appearance Picker View
+
+struct AppearancePickerView: View {
+    @ObservedObject var appearanceManager = AppearanceManager.shared
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                AppearanceModeButton(
+                    mode: mode,
+                    isSelected: appearanceManager.currentMode == mode
+                ) {
+                    withAnimation(ZKAnimations.spring) {
+                        appearanceManager.currentMode = mode
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct AppearanceModeButton: View {
+    let mode: AppearanceMode
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    private var iconName: String {
+        switch mode {
+        case .system: return "circle.lefthalf.filled"
+        case .dark: return "moon.fill"
+        case .light: return "sun.max.fill"
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: iconName)
+                    .font(.system(size: 18))
+                    .foregroundStyle(isSelected ? ZKColors.accentGradient : LinearGradient(colors: [Color.secondary], startPoint: .top, endPoint: .bottom))
+                
+                Text(mode.rawValue)
+                    .font(ZKTypography.caption)
+                    .foregroundColor(isSelected ? ZKColors.textPrimary : ZKColors.textSecondary)
+            }
+            .frame(width: 60, height: 56)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? Color.white.opacity(0.05) : Color.clear))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? ZKColors.accent.opacity(0.4) : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(ZKAnimations.easeOut) {
+                isHovered = hovering
+            }
+        }
+    }
+}
 
 // MARK: - Color Palette
 
@@ -36,10 +284,12 @@ struct ZKColors {
         endPoint: .bottomTrailing
     )
     
-    // Glass backgrounds
+    // Glass backgrounds (enhanced with more depth)
     static let glassBackground = Color.white.opacity(0.05)
     static let glassBorder = Color.white.opacity(0.1)
     static let glassHighlight = Color.white.opacity(0.15)
+    static let glassBackgroundElevated = Color.white.opacity(0.08)
+    static let glassBorderStrong = Color.white.opacity(0.18)
     
     // Text hierarchy
     static let textPrimary = Color.white
@@ -49,6 +299,17 @@ struct ZKColors {
     // Accent colors
     static let accent = Color(hex: "667EEA")
     static let accentLight = Color(hex: "8B9FFF")
+    
+    // Glow effects (Premium enhancement)
+    static let accentGlow = Color(hex: "667EEA").opacity(0.4)
+    static let successGlow = Color(hex: "38EF7D").opacity(0.3)
+    static let warningGlow = Color(hex: "F2994A").opacity(0.3)
+    
+    // Dark mode optimized surfaces (Premium enhancement)
+    static let cardBackground = Color(hex: "1E1E2E")
+    static let surfaceElevated = Color(hex: "232334")
+    static let surfacePressed = Color(hex: "161622")
+    static let background = Color(hex: "1A1A2E")
     
     // Status colors
     static let success = Color(hex: "38EF7D")
@@ -90,8 +351,10 @@ struct ZKAnimations {
     static let spring = Animation.spring(response: 0.4, dampingFraction: 0.8)
     static let springFast = Animation.spring(response: 0.3, dampingFraction: 0.7)
     static let springBouncy = Animation.spring(response: 0.5, dampingFraction: 0.6)
+    static let springSnappy = Animation.spring(response: 0.2, dampingFraction: 0.85)
     static let easeOut = Animation.easeOut(duration: 0.2)
     static let easeInOut = Animation.easeInOut(duration: 0.25)
+    static let smooth = Animation.interactiveSpring(response: 0.35, dampingFraction: 0.75)
 }
 
 // MARK: - Typography
@@ -242,6 +505,61 @@ struct HoverEffectModifier: ViewModifier {
 extension View {
     func hoverEffect(scale: CGFloat = 1.02, showBackground: Bool = true) -> some View {
         modifier(HoverEffectModifier(scaleAmount: scale, showBackground: showBackground))
+    }
+}
+
+// MARK: - Press Effect Modifier (Premium micro-interaction)
+
+struct PressEffectModifier: ViewModifier {
+    @GestureState private var isPressed = false
+    var scaleEffect: CGFloat = 0.97
+    var brightnessChange: Double = -0.05
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPressed ? scaleEffect : 1.0)
+            .brightness(isPressed ? brightnessChange : 0)
+            .animation(ZKAnimations.springSnappy, value: isPressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isPressed) { _, state, _ in
+                        state = true
+                    }
+            )
+    }
+}
+
+extension View {
+    func pressEffect(scale: CGFloat = 0.97, brightness: Double = -0.05) -> some View {
+        modifier(PressEffectModifier(scaleEffect: scale, brightnessChange: brightness))
+    }
+}
+
+// MARK: - Glow Effect Modifier (Premium enhancement)
+
+struct GlowEffectModifier: ViewModifier {
+    var color: Color = ZKColors.accent
+    var radius: CGFloat = 10
+    var intensity: Double = 0.6
+    @State private var isGlowing = false
+    var animated: Bool = false
+    
+    func body(content: Content) -> some View {
+        content
+            .shadow(color: color.opacity(animated ? (isGlowing ? intensity : intensity * 0.5) : intensity), radius: radius)
+            .onAppear {
+                if animated {
+                    withAnimation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                        isGlowing.toggle()
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func glowEffect(color: Color = ZKColors.accent, radius: CGFloat = 10, intensity: Double = 0.6, animated: Bool = false) -> some View {
+        modifier(GlowEffectModifier(color: color, radius: radius, intensity: intensity, animated: animated))
     }
 }
 

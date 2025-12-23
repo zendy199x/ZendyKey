@@ -7,7 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */; };
 		1097C5E52EF6662500969052 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1097C5E42EF6662500969052 /* Sparkle */; };
+		1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */; };
+		40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */; };
+		52817B15CE79AAC1C3BAAACF /* ZKInputSourceObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */; };
+		68CA5F55F8F5F60438FBB17C /* ZKOnScreenIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */; };
+		9F7283F34B683E0C1FCF5E93 /* ZKUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */; };
 		A1000001 /* ZendyKeyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* ZendyKeyApp.swift */; };
 		A1000002 /* ZKAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ZKAppDelegate.swift */; };
 		A1000003 /* ZKCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000003 /* ZKCharacter.swift */; };
@@ -57,9 +63,15 @@
 		A1000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000030 /* Assets.xcassets */; };
 		A1000031 /* ZKDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000031 /* ZKDesignSystem.swift */; };
 		A1000032 /* ZKStatusBarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000032 /* ZKStatusBarPopoverView.swift */; };
+		C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */; };
+		D8A9DF40239A47DBFC4DF971 /* ZKOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB920062BEF7A44A5DB6A04 /* ZKOnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKMenuBarHeaderView.swift; sourceTree = "<group>"; };
+		4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKUpdateBadgeView.swift; sourceTree = "<group>"; };
+		510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKUIComponents.swift; sourceTree = "<group>"; };
+		91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSoundManager.swift; sourceTree = "<group>"; };
 		A0000001 /* ZendyKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZendyKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000001 /* ZendyKeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZendyKeyApp.swift; sourceTree = "<group>"; };
 		A2000002 /* ZKAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKAppDelegate.swift; sourceTree = "<group>"; };
@@ -113,6 +125,10 @@
 		A3000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A3000002 /* ZendyKey.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZendyKey.entitlements; sourceTree = "<group>"; };
 		A3000003 /* ZendyKeyRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZendyKeyRelease.entitlements; sourceTree = "<group>"; };
+		B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKTextInjector.swift; sourceTree = "<group>"; };
+		C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKInputSourceObserver.swift; sourceTree = "<group>"; };
+		D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKOnScreenIndicator.swift; sourceTree = "<group>"; };
+		DBB920062BEF7A44A5DB6A04 /* ZKOnboardingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKOnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +201,7 @@
 				A200000A /* ZKCharacterInjector.swift */,
 				A200000B /* ZKKeyboardEventHandler.swift */,
 				A200001B /* ZKKeyCodeToCharacter.swift */,
+				B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */,
 			);
 			path = EventHandling;
 			sourceTree = "<group>";
@@ -210,6 +227,11 @@
 				A2000025 /* ZKExcludedAppsView.swift */,
 				A2000026 /* ZKWindowTitleRulesView.swift */,
 				A2000032 /* ZKStatusBarPopoverView.swift */,
+				DBB920062BEF7A44A5DB6A04 /* ZKOnboardingView.swift */,
+				D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */,
+				4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */,
+				510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */,
+				18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -224,6 +246,8 @@
 				A200002C /* ZKIMKitHelper.swift */,
 				A200001F /* ZKLaunchAtLogin.swift */,
 				A200001E /* ZKAppVersion.swift */,
+				91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */,
+				C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -398,6 +422,14 @@
 				A1000026 /* ZKWindowTitleRulesView.swift in Sources */,
 				A1000031 /* ZKDesignSystem.swift in Sources */,
 				A1000032 /* ZKStatusBarPopoverView.swift in Sources */,
+				D8A9DF40239A47DBFC4DF971 /* ZKOnboardingView.swift in Sources */,
+				68CA5F55F8F5F60438FBB17C /* ZKOnScreenIndicator.swift in Sources */,
+				0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */,
+				40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */,
+				52817B15CE79AAC1C3BAAACF /* ZKInputSourceObserver.swift in Sources */,
+				9F7283F34B683E0C1FCF5E93 /* ZKUIComponents.swift in Sources */,
+				1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */,
+				C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

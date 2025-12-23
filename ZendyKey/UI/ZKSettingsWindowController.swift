@@ -25,6 +25,16 @@ class ZKSettingsWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()
+        
+        // Apply appearance mode
+        switch AppearanceManager.shared.currentMode {
+        case .system:
+            window.appearance = nil
+        case .dark:
+            window.appearance = NSAppearance(named: .darkAqua)
+        case .light:
+            window.appearance = NSAppearance(named: .aqua)
+        }
 
         self.init(window: window)
 

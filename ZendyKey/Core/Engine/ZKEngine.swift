@@ -56,6 +56,32 @@ class ZKEngine {
     var vQuickEndConsonant = 0     // 0: No, 1: Yes (g->ng, h->nh, k->ch)
     var vTempOffOpenKey = 0        // 0: No, 1: Yes (temp off engine with Option key)
     
+    // MARK: - New Settings (inspired by GoNhanh)
+    
+    /// Enable ESC key to restore raw ASCII (undo Vietnamese transforms)
+    /// When true, pressing ESC restores original keystrokes
+    var vEscRestoreEnabled = 0     // 0: No, 1: Yes
+    
+    /// Enable English auto-restore on space
+    /// When true, automatically restores English words that were accidentally transformed
+    /// e.g., "têt" → "text", "ễpct" → "expect"
+    var vEnglishAutoRestore = 0    // 0: No, 1: Yes
+    
+    /// Enable sound on toggle
+    var vSoundOnToggle = 0         // 0: No, 1: Yes
+    
+    /// Skip w→ư shortcut in Telex mode (user preference)
+    /// When true, typing 'w' at word start stays as 'w' instead of converting to 'ư'
+    var vSkipWShortcut = 0         // 0: No, 1: Yes
+    
+    /// Enable free tone placement (skip validation)
+    /// When true, allows placing diacritics anywhere without spelling validation
+    var vFreeToneEnabled = 0       // 0: No, 1: Yes
+    
+    /// Enable per-app language mode (remember Vietnamese/English per application)
+    /// When true, ZendyKey remembers each app's last language setting
+    var vPerAppModeEnabled = 0     // 0: No, 1: Yes
+    
     // MARK: - Internal State (from Engine.cpp)
     // Note: Using internal access for extension support
     
@@ -75,6 +101,57 @@ class ZKEngine {
     var useSpellCheckingBefore = false
     var hasHandleQuickConsonant = false
     var willTempOffEngine = false
+    
+    // MARK: - Raw Input Tracking (for ESC restore & auto-restore English)
+    
+    /// Raw keystroke history for ESC restore
+    /// Stores (keyCode, isCaps, isShift) for each keystroke
+    var rawInput: [(keyCode: UInt16, isCaps: Bool, isShift: Bool)] = []
+    
+    /// Tracks if ANY Vietnamese transform was ever applied during this word
+    /// Used to prevent false auto-restore for words that never had transforms
+    var hadAnyTransform = false
+    
+    /// Word history ring buffer for backspace-after-space feature
+    /// Stores last N completed words
+    private var wordHistory: [[UInt32]] = []
+    private let wordHistoryCapacity = 10
+    
+    /// Number of spaces typed after committing a word
+    /// Used for backspace-after-space restore feature
+    var spacesAfterCommit = 0
+    
+    // MARK: - GoNhanh-Inspired Advanced State Tracking
+    
+    /// Pending breve position: position of 'a' that has deferred breve
+    /// Breve on 'a' in open syllables (like "raw") is invalid Vietnamese
+    /// We defer applying breve until a valid final consonant is typed
+    var pendingBrevePos: Int? = nil
+    
+    /// Pending horn position on 'u' in "uơ" pattern
+    /// When "uo" + 'w' is typed at end of syllable, only 'o' gets horn initially
+    /// If a final consonant/vowel is added, also apply horn to 'u'
+    /// Examples: "huow" → "huơ" (stays), "duow" + "c" → "dược" (u gets horn)
+    var pendingHornPos: Int? = nil
+    
+    /// Tracks if a mark was reverted in current word
+    /// Used by auto-restore to detect words like "issue", "bass" that need restoration
+    var hadMarkRevert = false
+    
+    /// Pending pop from raw_input after mark revert
+    /// When true, the NEXT consonant key will trigger a pop to remove the consumed modifier
+    /// This differentiates: "tesst" → "test" (consonant after) vs "issue" → "issue" (vowel after)
+    var pendingMarkRevertPop = false
+    
+    /// Tracks if circumflex was applied from V+C+V pattern by vowel trigger
+    /// Example: "toto" → "tôt" (second 'o' triggers circumflex on first 'o')
+    /// Used for auto-restore: if no mark follows, restore on space
+    var hadVowelTriggeredCircumflex = false
+    
+    /// Buffer was just restored from DELETE - clear on next letter input
+    /// This prevents typing after restore from appending to old buffer
+    var restoredPendingClear = false
+
     
     // MARK: - Logging
     
@@ -134,29 +211,250 @@ class ZKEngine {
         hookState.macroKey = savedMacroKey
         
         let isCaps = isUppercase
+        
+        // Handle ESC key - restore to raw ASCII if enabled
+        if keyCode == ZKVietnameseData.KEY_ESCAPE {
+            if vEscRestoreEnabled == 1 {
+                let result = restoreToRaw()
+                clearRawInputState()
+                return result
+            } else {
+                // Just clear state without restoring
+                clearRawInputState()
+                hookState.code = UInt8(vDoNothing)
+                return hookState
+            }
+        }
 
         // Check if number key with shift or has other modifier
         if (vietnameseData.isNumberKey(keyCode) && isUppercase) || hasOtherModifier || isWordBreak(keyCode: keyCode) {
+            // Auto-restore on break keys if enabled
+            if vEnglishAutoRestore == 1 && hadAnyTransform && !rawInput.isEmpty {
+                if let restoreResult = tryAutoRestoreOnBreak() {
+                    clearRawInputState()
+                    return restoreResult
+                }
+            }
             handleWordBreak(keyCode: keyCode, character: character, isCaps: isCaps)
+            clearRawInputState()
             return hookState
         }
         
         // Handle space
         if keyCode == ZKVietnameseData.KEY_SPACE {
+            // Auto-restore on space if enabled
+            if vEnglishAutoRestore == 1 && hadAnyTransform && !rawInput.isEmpty {
+                if let restoreResult = tryAutoRestoreOnSpace() {
+                    // Push to word history before clearing
+                    pushToWordHistory()
+                    clearRawInputState()
+                    return restoreResult
+                }
+            }
             handleSpace()
+            // Push to word history before clearing
+            if spaceCount == 1 {
+                pushToWordHistory()
+                spacesAfterCommit = 1
+            } else {
+                spacesAfterCommit += 1
+            }
             return hookState
         }
         
         // Handle delete/backspace
         if keyCode == ZKVietnameseData.KEY_DELETE {
+            // Backspace-after-space feature
+            if spacesAfterCommit > 0 && index == 0 {
+                spacesAfterCommit -= 1
+                if spacesAfterCommit == 0 {
+                    restoreFromWordHistory()
+                }
+            }
             handleDelete()
+            // Also remove from rawInput
+            if !rawInput.isEmpty {
+                rawInput.removeLast()
+            }
             return hookState
+        }
+        
+        // Record raw keystroke for ESC restore (letters and numbers only)
+        if isLetter(keyCode: keyCode) || vietnameseData.isNumberKey(keyCode) {
+            rawInput.append((keyCode: keyCode, isCaps: isCaps, isShift: false))
         }
         
         // Handle normal key
         handleNormalKey(keyCode: keyCode, character: character, isCaps: isCaps)
         
         return hookState
+    }
+    
+    // MARK: - ESC Restore & Auto-restore English
+    
+    /// Check if keyCode is a letter
+    private func isLetter(keyCode: UInt16) -> Bool {
+        return ZKVietnameseData.letterCode.contains(keyCode)
+    }
+    
+    /// Restore buffer to raw ASCII from rawInput
+    private func restoreToRaw() -> HookState {
+        var result = HookState()
+        
+        guard !rawInput.isEmpty else {
+            result.code = UInt8(vDoNothing)
+            return result
+        }
+        
+        // Calculate backspace count - delete current buffer content
+        let backspaceCount = Int(index)
+        
+        // Build raw chars from rawInput
+        var rawChars: [UInt32] = []
+        for (keyCode, isCaps, _) in rawInput {
+            if let char = vietnameseData.keyCodeToChar(keyCode, isCaps: isCaps) {
+                rawChars.append(UInt32(char.asciiValue ?? 0))
+            }
+        }
+        
+        result.code = UInt8(vWillProcess)
+        result.backspaceCount = backspaceCount
+        result.newCharCount = rawChars.count
+        for (i, char) in rawChars.enumerated() where i < ZKEngine.MAX_BUFF {
+            result.charData[i] = char
+        }
+        
+        logCallback?("restoreToRaw: bs=\(backspaceCount), rawChars=\(rawChars.count)")
+        
+        return result
+    }
+    
+    /// Try auto-restore on space - checks if current word is likely English
+    private func tryAutoRestoreOnSpace() -> HookState? {
+        guard hadAnyTransform && !rawInput.isEmpty else {
+            return nil
+        }
+        
+        // Check if the transformed buffer represents an invalid Vietnamese word
+        // that looks like English (e.g., "têt" from "text", "ễpct" from "expect")
+        if isForeignWordPattern() {
+            logCallback?("tryAutoRestoreOnSpace: detected foreign pattern, restoring")
+            return restoreToRaw()
+        }
+        
+        return nil
+    }
+    
+    /// Try auto-restore on break key
+    private func tryAutoRestoreOnBreak() -> HookState? {
+        guard hadAnyTransform && !rawInput.isEmpty else {
+            return nil
+        }
+        
+        if isForeignWordPattern() {
+            logCallback?("tryAutoRestoreOnBreak: detected foreign pattern, restoring")
+            return restoreToRaw()
+        }
+        
+        return nil
+    }
+    
+    /// Check if current buffer looks like a foreign (English) word pattern
+    private func isForeignWordPattern() -> Bool {
+        guard rawInput.count >= 2 else {
+            return false
+        }
+        
+        // Extract raw keys
+        let rawKeys = rawInput.map { $0.keyCode }
+        
+        // Pattern 1: Modifier key followed by consonant (text, expect, next)
+        // In Telex, s/f/r/x/j are modifiers. If followed by consonant, likely English
+        let modifierKeys: [UInt16] = [
+            ZKVietnameseData.KEY_S, ZKVietnameseData.KEY_F,
+            ZKVietnameseData.KEY_R, ZKVietnameseData.KEY_X,
+            ZKVietnameseData.KEY_J
+        ]
+        
+        for i in 0..<(rawKeys.count - 1) {
+            if modifierKeys.contains(rawKeys[i]) && vietnameseData.isConsonant(rawKeys[i + 1]) {
+                logCallback?("isForeignWordPattern: modifier + consonant pattern")
+                return true
+            }
+        }
+        
+        // Pattern 2: W at word start followed by consonant (window, with, when)
+        if rawKeys.count >= 2 && rawKeys[0] == ZKVietnameseData.KEY_W {
+            if vietnameseData.isConsonant(rawKeys[1]) || rawKeys[1] == ZKVietnameseData.KEY_I {
+                logCallback?("isForeignWordPattern: w-start pattern")
+                return true
+            }
+        }
+        
+        // Pattern 3: F at word start (file, fix, function)
+        // F is not a valid Vietnamese initial consonant
+        if rawKeys.count >= 2 && rawKeys[0] == ZKVietnameseData.KEY_F {
+            logCallback?("isForeignWordPattern: f-start pattern")
+            return true
+        }
+        
+        return false
+    }
+    
+    /// Clear raw input state and all advanced tracking flags
+    private func clearRawInputState() {
+        rawInput.removeAll()
+        hadAnyTransform = false
+        pendingBrevePos = nil
+        pendingHornPos = nil
+        hadMarkRevert = false
+        pendingMarkRevertPop = false
+        hadVowelTriggeredCircumflex = false
+        restoredPendingClear = false
+    }
+    
+    // MARK: - Word History for Backspace-after-space
+    
+    /// Push current word to history
+    private func pushToWordHistory() {
+        guard index > 0 else { return }
+        
+        // Extract current word (up to index)
+        var word: [UInt32] = []
+        for i in 0..<Int(index) {
+            word.append(typingWord[i])
+        }
+        
+        // Add to history (ring buffer)
+        if wordHistory.count >= wordHistoryCapacity {
+            wordHistory.removeFirst()
+        }
+        wordHistory.append(word)
+        
+        logCallback?("pushToWordHistory: pushed word with \(word.count) chars")
+    }
+    
+    /// Restore word from history (for backspace-after-space feature)
+    private func restoreFromWordHistory() {
+        guard !wordHistory.isEmpty else { return }
+        
+        let word = wordHistory.removeLast()
+        
+        // Restore to typingWord
+        for (i, char) in word.enumerated() where i < ZKEngine.MAX_BUFF {
+            typingWord[i] = char
+        }
+        index = UInt8(min(word.count, ZKEngine.MAX_BUFF))
+        
+        // Reconstruct rawInput from typingWord
+        rawInput.removeAll()
+        for i in 0..<Int(index) {
+            let keyCode = UInt16(typingWord[i] & ZKEngine.CHAR_MASK)
+            let isCaps = (typingWord[i] & ZKEngine.CAPS_MASK) != 0
+            rawInput.append((keyCode: keyCode, isCaps: isCaps, isShift: false))
+        }
+        
+        logCallback?("restoreFromWordHistory: restored word with \(index) chars")
     }
     
     // MARK: - Word Break Handling
@@ -251,13 +549,39 @@ class ZKEngine {
             index = 0
         }
         
-        // Upper case first char
+        // Upper case first char - Enhanced auto-capitalize (inspired by GoNhanh)
+        // Triggers: . ! ? Enter
+        // Neutral keys (don't reset pending): quotes, brackets, parentheses
         if vUpperCaseFirstChar == 1 {
-            if keyCode == ZKVietnameseData.KEY_DOT {
-                upperCaseStatus = 1
-            } else if keyCode == ZKVietnameseData.KEY_ENTER || keyCode == ZKVietnameseData.KEY_RETURN {
-                upperCaseStatus = 2
+            // Check for sentence-ending punctuation
+            let isSentenceEnding = keyCode == ZKVietnameseData.KEY_DOT ||                     // .
+                                   keyCode == ZKVietnameseData.KEY_ENTER ||                   // Enter
+                                   keyCode == ZKVietnameseData.KEY_RETURN ||                  // Return
+                                   (isCaps && keyCode == ZKVietnameseData.KEY_1) ||           // ! (Shift+1)
+                                   (isCaps && keyCode == ZKVietnameseData.KEY_SLASH)          // ? (Shift+/)
+            
+            // Check for neutral keys that should NOT reset pending capitalize
+            // These include quotes, brackets, parentheses, and navigation keys
+            let isNeutralKey = keyCode == ZKVietnameseData.KEY_QUOTE ||                       // ' "
+                               keyCode == ZKVietnameseData.KEY_LEFT_BRACKET ||                // [
+                               keyCode == ZKVietnameseData.KEY_RIGHT_BRACKET ||               // ]
+                               (isCaps && keyCode == ZKVietnameseData.KEY_9) ||               // ( (Shift+9)
+                               (isCaps && keyCode == ZKVietnameseData.KEY_0) ||               // ) (Shift+0)
+                               keyCode == ZKVietnameseData.KEY_LEFT ||                        // Arrow keys
+                               keyCode == ZKVietnameseData.KEY_RIGHT ||
+                               keyCode == ZKVietnameseData.KEY_UP ||
+                               keyCode == ZKVietnameseData.KEY_DOWN ||
+                               keyCode == ZKVietnameseData.KEY_TAB ||
+                               keyCode == ZKVietnameseData.KEY_ESC
+            
+            if isSentenceEnding {
+                // Set pending: status 1 for punctuation, 2 for Enter means ready to capitalize
+                upperCaseStatus = (keyCode == ZKVietnameseData.KEY_ENTER || keyCode == ZKVietnameseData.KEY_RETURN) ? 2 : 1
+            } else if isNeutralKey {
+                // Preserve current upperCaseStatus - don't change it
+                // This allows: "Hello." → type " → type letter → still capitalizes
             } else {
+                // Non-sentence-ending, non-neutral key: reset status
                 upperCaseStatus = 0
             }
         }

@@ -1,0 +1,37 @@
+name: ✨ Yêu cầu tính năng / Feature Request
+description: Đề xuất tính năng mới / Suggest a new feature
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Mô tả tính năng / Feature Description
+      description: Bạn muốn ZendyKey có tính năng gì?
+      placeholder: Mô tả chi tiết tính năng bạn muốn...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Trường hợp sử dụng / Use Case
+      description: Tại sao tính năng này hữu ích?
+      placeholder: |
+        Khi nào bạn cần tính năng này?
+        Nó giúp bạn giải quyết vấn đề gì?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Giải pháp thay thế / Alternatives
+      description: Bạn đã thử giải pháp nào khác chưa?
+      placeholder: Mô tả cách bạn đang giải quyết vấn đề hiện tại...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Mức độ ưu tiên / Priority
+      options:
+        - Cao / High - Cần thiết để sử dụng hàng ngày
+        - Trung bình / Medium - Tốt nếu có
+        - Thấp / Low - Nice to have

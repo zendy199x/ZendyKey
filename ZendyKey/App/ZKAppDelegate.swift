@@ -78,6 +78,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Set shared instance for access from SwiftUI views
         ZKAppDelegate.shared = self
         
+        // Apply saved appearance mode
+        AppearanceManager.shared.applyAppearance()
+        
         // Create debug window first
         setupDebugWindow()
         
@@ -115,11 +118,51 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup input source manager
         setupZKInputSourceManager()
 
+        // Setup input source observer (auto-disable for non-Latin keyboards)
+        setupInputSourceObserver()
+
         // Setup Sparkle auto-update
         setupSparkleUpdater()
+        
+        // Show onboarding on first launch
+        showOnboardingIfNeeded()
+        
+        // Silent update check after 3 seconds (like GoNhanh)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.silentUpdateCheck()
+        }
 
         debugWindowController?.updateStatus("ZendyKey started successfully")
         debugWindowController?.logEvent("✅ ZendyKey started successfully")
+    }
+    
+    private func showOnboardingIfNeeded() {
+        if !hasCompletedOnboarding() {
+            debugWindowController?.logEvent("📋 First launch - showing onboarding")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.showOnboarding()
+            }
+        }
+    }
+    
+    func showOnboarding() {
+        let onboardingView = ZKOnboardingView {
+            // On complete callback
+            self.debugWindowController?.logEvent("✅ Onboarding completed")
+        }
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Chào mừng đến với ZendyKey"
+        window.contentView = NSHostingView(rootView: onboardingView)
+        window.center()
+        window.level = .floating
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -153,6 +196,15 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        return true
+    }
+    
+    /// Handle Dock icon click - open preferences
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // No visible windows, open preferences
+            openPreferences()
+        }
         return true
     }
     
@@ -425,6 +477,27 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Update undo typing (Esc key)
         keyboardHandler?.undoTypingEnabled = preferences.undoTypingEnabled
         debugWindowController?.logEvent(preferences.undoTypingEnabled ? "  ✅ Undo typing enabled (Esc key)" : "  ⏹️ Undo typing disabled")
+        
+        // Sync to engine settings
+        keyboardHandler?.engine.vEscRestoreEnabled = preferences.undoTypingEnabled ? 1 : 0
+        keyboardHandler?.engine.vEnglishAutoRestore = preferences.autoRestoreEnglishEnabled ? 1 : 0
+        keyboardHandler?.engine.vSoundOnToggle = preferences.beepOnToggle ? 1 : 0
+        keyboardHandler?.engine.vSkipWShortcut = preferences.skipWShortcut ? 1 : 0
+        keyboardHandler?.engine.vFreeToneEnabled = preferences.freeToneEnabled ? 1 : 0
+        keyboardHandler?.engine.vPerAppModeEnabled = preferences.perAppModeEnabled ? 1 : 0
+        
+        if preferences.autoRestoreEnglishEnabled {
+            debugWindowController?.logEvent("  ✅ Auto-restore English enabled")
+        }
+        if preferences.skipWShortcut {
+            debugWindowController?.logEvent("  ✅ W shortcut skip enabled")
+        }
+        if preferences.freeToneEnabled {
+            debugWindowController?.logEvent("  ✅ Free tone placement enabled")
+        }
+        if preferences.perAppModeEnabled {
+            debugWindowController?.logEvent("  ✅ Per-app mode enabled")
+        }
 
         debugWindowController?.logEvent("✅ Preferences applied (including advanced features)")
     }
@@ -457,11 +530,16 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private func checkAndRequestPermissions() {
         guard let manager = eventTapManager else { return }
         
-        if !manager.checkAccessibilityPermission() {
-            showPermissionAlert()
-            // Start monitoring for permission changes
-            startPermissionMonitoring()
+        // Check if permission is already granted - skip everything if yes (like GoNhanh)
+        if manager.checkAccessibilityPermission() {
+            debugWindowController?.logEvent("✅ Accessibility permission already granted - skipping prompt")
+            return
         }
+        
+        // Only show permission request if not granted
+        showPermissionAlert()
+        // Start monitoring for permission changes
+        startPermissionMonitoring()
     }
     
     private func showPermissionAlert() {
@@ -1002,6 +1080,64 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             
         } catch {
             debugWindowController?.logEvent("❌ Failed to initialize Sparkle: \(error)")
+        }
+    }
+    
+    // MARK: - Input Source Observer (Auto-disable for non-Latin keyboards)
+    
+    private func setupInputSourceObserver() {
+        // Start input source observer
+        ZKInputSourceObserver.shared.start()
+        
+        // Set callback to handle input source changes
+        ZKInputSourceObserver.shared.onInputSourceChanged = { [weak self] isAllowed in
+            guard let self = self else { return }
+            
+            // Check if auto-switch is enabled in preferences
+            let prefs = ZKSharedSettings.shared.loadPreferences()
+            guard prefs.inputSourceAutoSwitch else { return }
+            
+            if isAllowed {
+                // ABC/Latin keyboard: restore user's previous enabled state
+                // Don't auto-enable - just allow user to use ZendyKey if they want
+                debugWindowController?.logEvent("🔤 Input source allowed (Latin) - ZendyKey available")
+            } else {
+                // Non-Latin keyboard (Japanese/Korean/Chinese): auto-disable ZendyKey
+                // This prevents ZendyKey from interfering with other input methods
+                if statusBarManager?.viewModel.isVietnameseEnabled == true {
+                    statusBarManager?.viewModel.setVietnameseEnabled(false)
+                    debugWindowController?.logEvent("🔤 Non-Latin input source detected - ZendyKey auto-disabled")
+                }
+            }
+        }
+        
+        debugWindowController?.logEvent("✅ Input Source Observer started")
+        debugWindowController?.logEvent("   Current display char: \(ZKInputSourceObserver.shared.currentDisplayChar)")
+        debugWindowController?.logEvent("   Is allowed: \(ZKInputSourceObserver.shared.isAllowedInputSource)")
+    }
+    
+    // MARK: - Silent Update Check
+    
+    private func silentUpdateCheck() {
+        guard let updater = updaterController?.updater else {
+            debugWindowController?.logEvent("⚠️ Silent update check: updater not available")
+            return
+        }
+        
+        // Update status in ViewModel
+        statusBarManager?.viewModel.updateStatus = .checking
+        debugWindowController?.logEvent("🔍 Silent update check started...")
+        
+        // Check for updates in background (silent mode)
+        updater.checkForUpdatesInBackground()
+        
+        // Reset status after a few seconds (Sparkle handles the actual UI)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            // If still checking, set to idle (no update found silently)
+            if case .checking = self?.statusBarManager?.viewModel.updateStatus {
+                self?.statusBarManager?.viewModel.updateStatus = .idle
+                self?.debugWindowController?.logEvent("✅ Silent update check completed")
+            }
         }
     }
 }

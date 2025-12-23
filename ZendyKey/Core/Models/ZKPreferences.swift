@@ -27,6 +27,7 @@ struct Preferences: Codable {
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
     var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
+    var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
     
     // Input settings
     var inputMethod: InputMethod = .telex
@@ -34,6 +35,7 @@ struct Preferences: Codable {
     var modernStyle: Bool = false
     var spellCheckEnabled: Bool = false
     var fixAutocomplete: Bool = true
+    var autoRestoreEnglishEnabled: Bool = false  // Auto-restore English when foreign pattern detected
     
     // Advanced features
     var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
@@ -45,6 +47,9 @@ struct Preferences: Codable {
     var freeMarkEnabled: Bool = false            // Free mark placement (đặt dấu tự do)
     var tempOffSpellingEnabled: Bool = false     // Temp off spelling with Ctrl key
     var tempOffEngineEnabled: Bool = false       // Temp off engine with Option key
+    var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
+    var freeToneEnabled: Bool = false            // Free tone placement without validation
+    var perAppModeEnabled: Bool = false          // Remember language mode per application
     
     // Macro settings
     var macroEnabled: Bool = false               // Enable text shortcuts
@@ -54,6 +59,7 @@ struct Preferences: Codable {
     // Smart switch settings
     var smartSwitchEnabled: Bool = false         // Remember language per app
     var detectOverlayApps: Bool = false          // Detect Spotlight/Raycast/Alfred overlay apps
+    var inputSourceAutoSwitch: Bool = true       // Auto-disable for non-Latin input sources
     
     // Debug settings
     var debugModeEnabled: Bool = false           // Show debug window (even in production)

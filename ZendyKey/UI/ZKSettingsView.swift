@@ -18,7 +18,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case excludedApps = "Loại trừ"
     case macro = "Macro"
     case convertTool = "Chuyển đổi"
-    case appearance = "Giao diện"
+    case appearance = "Hệ thống"
     case about = "Giới thiệu"
 
     var id: String { rawValue }
@@ -32,7 +32,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .excludedApps: return "app.badge.fill"
         case .macro: return "text.badge.plus"
         case .convertTool: return "arrow.left.arrow.right"
-        case .appearance: return "paintbrush"
+        case .appearance: return "gearshape.2"
         case .about: return "info.circle"
         }
     }
@@ -104,6 +104,16 @@ struct ZKSettingsView: View {
                 }
                 
                 Spacer()
+                
+                // Update Badge - Version and update status
+                ZKUpdateBadgeView(
+                    status: .idle,
+                    onCheck: {
+                        ZKAppDelegate.shared?.checkForUpdatesFromUI()
+                    }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
             .frame(width: 200)
             .background(
@@ -235,6 +245,24 @@ struct GeneralSettingsSection: View {
                         Toggle("Kiểu gõ hiện đại (oà/uý)", isOn: $viewModel.preferences.modernStyle)
                         Toggle("Kiểm tra chính tả", isOn: $viewModel.preferences.spellCheckEnabled)
                         Toggle("Sửa lỗi tự động hoàn thành (áp dụng cho Chrome, Terminal...)", isOn: $viewModel.preferences.fixAutocomplete)
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Tự động khôi phục tiếng Anh", isOn: $viewModel.preferences.autoRestoreEnglishEnabled)
+                            
+                            Text("Tự động chuyển về tiếng Anh khi phát hiện từ như 'text', 'window', 'file'...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Hiển thị chỉ báo trên màn hình", isOn: $viewModel.preferences.showOnScreenIndicator)
+                            
+                            Text("Hiển thị icon V/E khi chuyển ngôn ngữ")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -309,6 +337,32 @@ struct AdvancedSettingsSection: View {
                         Toggle("Đặt dấu tự do (Free Mark)", isOn: $viewModel.preferences.freeMarkEnabled)
                         
                         Text("Cho phép đặt dấu ở bất kỳ vị trí nào trong từ")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Toggle("Đặt thanh tự do (Free Tone)", isOn: $viewModel.preferences.freeToneEnabled)
+                        
+                        Text("Bỏ qua kiểm tra chính tả khi đặt thanh")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                SettingsGroup(title: "Telex") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Bỏ qua w→ư", isOn: $viewModel.preferences.skipWShortcut)
+                        
+                        Text("Giữ 'w' là 'w' thay vì chuyển thành 'ư' ở đầu từ")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                SettingsGroup(title: "Ghi nhớ ứng dụng") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Nhớ ngôn ngữ theo ứng dụng", isOn: $viewModel.preferences.perAppModeEnabled)
+                        
+                        Text("Tự động nhớ Việt/Anh cho từng ứng dụng")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -486,27 +540,65 @@ struct AdvancedSettingsSection: View {
 
 struct AppearanceSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
+    @State private var hasAccessibilityPermission = AXIsProcessTrusted()
+    
+    private let permissionCheckTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsGroup(title: "Thanh menu") {
+                // Accessibility Permission
+                SettingsGroup(title: "Quyền truy cập") {
+                    HStack {
+                        Image(systemName: hasAccessibilityPermission ? "checkmark.shield.fill" : "xmark.shield.fill")
+                            .foregroundColor(hasAccessibilityPermission ? .green : .red)
+                            .font(.system(size: 18))
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(hasAccessibilityPermission ? "Đã cấp quyền Accessibility" : "Chưa cấp quyền Accessibility")
+                                .font(.subheadline)
+                                .foregroundColor(hasAccessibilityPermission ? .primary : .red)
+                            
+                            Text("ZendyKey cần quyền này để nhận phím từ bàn phím")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if !hasAccessibilityPermission {
+                            Button("Mở Cài đặt") {
+                                openAccessibilitySettings()
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                }
+                
+                // Theme selection (Dark/Light/System)
+                SettingsGroup(title: "Giao diện") {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Biểu tượng menubar:")
+                        Text("Chế độ màu:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        HStack(spacing: 12) {
-                            ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
-                                SettingsRadioButton(
-                                    title: style.displayName,
-                                    isSelected: viewModel.preferences.menuBarIconStyle == style
-                                ) {
-                                    viewModel.preferences.menuBarIconStyle = style
-                                }
-                            }
-                        }
-                        .padding(.leading, 8)
+                        AppearancePickerView()
+                            .padding(.top, 4)
+                        
+                        Text("Chọn chế độ sáng, tối hoặc tự động theo hệ thống")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                // Sound Settings
+                SettingsGroup(title: "Âm thanh") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Phát âm thanh khi chuyển ngôn ngữ", isOn: $viewModel.preferences.beepOnToggle)
+                        
+                        Text("Phát âm thanh khi bật/tắt tiếng Việt")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -526,6 +618,15 @@ struct AppearanceSettingsSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
+        }
+        .onReceive(permissionCheckTimer) { _ in
+            hasAccessibilityPermission = AXIsProcessTrusted()
+        }
+    }
+    
+    private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
 }

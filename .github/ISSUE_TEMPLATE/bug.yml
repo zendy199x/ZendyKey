@@ -1,0 +1,100 @@
+name: 🐛 Báo lỗi / Bug Report
+description: Báo cáo lỗi phần mềm / Report a bug
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: bug-type
+    attributes:
+      label: Loại lỗi / Bug Type
+      options:
+        - Gõ ra kết quả không như mong đợi / Typing output incorrect
+        - Ứng dụng bị crash / App crashes
+        - Không gõ được tiếng Việt / Cannot type Vietnamese
+        - Khác / Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app-scope
+    attributes:
+      label: Lỗi xảy ra ở đâu? / Where does this happen?
+      description: Lỗi chỉ xảy ra trên một app hay tất cả?
+      options:
+        - Chỉ một app cố định / Only one specific app
+        - Một vài app / Several apps
+        - Tất cả các app / All apps
+        - Không chắc chắn / Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: affected-apps
+    attributes:
+      label: App bị lỗi / Affected Apps
+      description: "Ví dụ: Chrome, VS Code, Terminal..."
+      placeholder: "Chrome, VS Code..."
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Mô tả lỗi / Bug Description
+      placeholder: Lỗi gì đã xảy ra? Gõ gì thì bị sai?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Các bước tái hiện / Steps to Reproduce
+      placeholder: |
+        1. Mở app X / Open app X
+        2. Gõ "abc" / Type "abc"
+        3. Kết quả bị sai / Result is wrong...
+
+  - type: dropdown
+    id: input-method
+    attributes:
+      label: Kiểu gõ / Input Method
+      options:
+        - Telex
+        - VNI
+        - VIQR
+        - Không biết / Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Phiên bản macOS / macOS Version
+      options:
+        - macOS 15 (Sequoia)
+        - macOS 14 (Sonoma)
+        - macOS 13 (Ventura)
+        - macOS 12 (Monterey)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Phiên bản ZendyKey / ZendyKey Version
+      description: Xem trong menu ZendyKey → About
+      placeholder: "1.0.0"
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Tần suất xảy ra / Frequency
+      options:
+        - Luôn luôn (100%) / Always
+        - Thường xuyên (>50%) / Often
+        - Thỉnh thoảng (<50%) / Sometimes
+        - Hiếm khi / Rarely
+        - Chỉ một lần / Only once
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Thông tin thêm / Additional Context
+      placeholder: Screenshots, logs, hoặc thông tin khác...

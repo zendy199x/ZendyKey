@@ -70,6 +70,17 @@ class ZKVietnameseData {
     static let KEY_DOWN: UInt16 = 0x7D
     static let KEY_UP: UInt16 = 0x7E
     
+    // KEY_ESCAPE alias (used by ZKEngine for clarity)
+    static let KEY_ESCAPE: UInt16 = KEY_ESC
+    
+    // Letter key codes for fast lookup
+    static let letterCode: Set<UInt16> = [
+        KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H,
+        KEY_I, KEY_J, KEY_K, KEY_L, KEY_M, KEY_N, KEY_O, KEY_P,
+        KEY_Q, KEY_R, KEY_S, KEY_T, KEY_U, KEY_V, KEY_W, KEY_X,
+        KEY_Y, KEY_Z
+    ]
+    
     // MARK: - Processing Characters (from Engine.cpp)
     
     let processingChar: [[UInt16]] = [
@@ -697,5 +708,33 @@ class ZKVietnameseData {
         
         // Return lowercase or original
         return UInt32(keyCode) + 0x61  // 'a' = 0x61
+    }
+    
+    /// Convert key code to ASCII character (for ESC restore feature)
+    func keyCodeToChar(_ keyCode: UInt16, isCaps: Bool) -> Character? {
+        // Map key codes to lowercase characters
+        let keyToChar: [UInt16: Character] = [
+            ZKVietnameseData.KEY_A: "a", ZKVietnameseData.KEY_B: "b", ZKVietnameseData.KEY_C: "c",
+            ZKVietnameseData.KEY_D: "d", ZKVietnameseData.KEY_E: "e", ZKVietnameseData.KEY_F: "f",
+            ZKVietnameseData.KEY_G: "g", ZKVietnameseData.KEY_H: "h", ZKVietnameseData.KEY_I: "i",
+            ZKVietnameseData.KEY_J: "j", ZKVietnameseData.KEY_K: "k", ZKVietnameseData.KEY_L: "l",
+            ZKVietnameseData.KEY_M: "m", ZKVietnameseData.KEY_N: "n", ZKVietnameseData.KEY_O: "o",
+            ZKVietnameseData.KEY_P: "p", ZKVietnameseData.KEY_Q: "q", ZKVietnameseData.KEY_R: "r",
+            ZKVietnameseData.KEY_S: "s", ZKVietnameseData.KEY_T: "t", ZKVietnameseData.KEY_U: "u",
+            ZKVietnameseData.KEY_V: "v", ZKVietnameseData.KEY_W: "w", ZKVietnameseData.KEY_X: "x",
+            ZKVietnameseData.KEY_Y: "y", ZKVietnameseData.KEY_Z: "z",
+            ZKVietnameseData.KEY_0: "0", ZKVietnameseData.KEY_1: "1", ZKVietnameseData.KEY_2: "2",
+            ZKVietnameseData.KEY_3: "3", ZKVietnameseData.KEY_4: "4", ZKVietnameseData.KEY_5: "5",
+            ZKVietnameseData.KEY_6: "6", ZKVietnameseData.KEY_7: "7", ZKVietnameseData.KEY_8: "8",
+            ZKVietnameseData.KEY_9: "9"
+        ]
+        
+        if let char = keyToChar[keyCode] {
+            if isCaps {
+                return Character(char.uppercased())
+            }
+            return char
+        }
+        return nil
     }
 }
