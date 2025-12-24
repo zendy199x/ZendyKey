@@ -129,6 +129,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup Sparkle auto-update
         setupSparkleUpdater()
         
+        // Setup Vietnamese toggle notifications (for Settings integration)
+        setupVietnameseToggleObservers()
+        
         // Show onboarding on first launch
         showOnboardingIfNeeded()
         
@@ -139,6 +142,36 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
 
         debugWindowController?.updateStatus("ZendyKey started successfully")
         debugWindowController?.logEvent("✅ ZendyKey started successfully")
+    }
+    
+    private func setupVietnameseToggleObservers() {
+        // Listen for toggle requests from Settings
+        NotificationCenter.default.addObserver(
+            forName: .toggleVietnameseFromSettings,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let enabled = notification.userInfo?["enabled"] as? Bool {
+                self?.statusBarManager?.viewModel.isVietnameseEnabled = enabled
+                self?.debugWindowController?.logEvent("🔄 Vietnamese mode \(enabled ? "enabled" : "disabled") from Settings")
+            }
+        }
+        
+        // Listen for state request from Settings
+        NotificationCenter.default.addObserver(
+            forName: .requestVietnameseState,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            let isEnabled = self?.statusBarManager?.viewModel.isVietnameseEnabled ?? true
+            NotificationCenter.default.post(
+                name: .vietnameseModeDidChange,
+                object: nil,
+                userInfo: ["enabled": isEnabled]
+            )
+        }
+        
+        debugWindowController?.logEvent("  ✅ Vietnamese toggle observers setup")
     }
     
     private func showOnboardingIfNeeded() {
@@ -509,12 +542,21 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Update switch ZendyKey hotkey
         setupSwitchZendyKeyHotkey(with: preferences.switchToZendyKeyHotkey)
         
-        // Update undo typing (Esc key)
-        keyboardHandler?.undoTypingEnabled = preferences.undoTypingEnabled
-        debugWindowController?.logEvent(preferences.undoTypingEnabled ? "  ✅ Undo typing enabled (Esc key)" : "  ⏹️ Undo typing disabled")
+        // Update restore key (ESC/Option/Control)
+        let restoreEnabled = preferences.restoreOnEscape
+        keyboardHandler?.restoreKeyEnabled = restoreEnabled
+        keyboardHandler?.restoreKeyCode = preferences.restoreKey.rawValue
+        debugWindowController?.logEvent(restoreEnabled ? "  ✅ Restore to raw keys enabled (\(preferences.restoreKey.displayName))" : "  ⏹️ Restore to raw keys disabled")
+        
+        // Update pause key (hold to temporarily switch to English)
+        eventTapManager?.pauseKeyEnabled = preferences.pauseKeyEnabled
+        eventTapManager?.pauseKeyCode = preferences.pauseKey
+        if preferences.pauseKeyEnabled {
+            debugWindowController?.logEvent("  ✅ Pause key enabled (\(preferences.pauseKeyName))")
+        }
         
         // Sync to engine settings
-        keyboardHandler?.engine.vEscRestoreEnabled = preferences.undoTypingEnabled ? 1 : 0
+        keyboardHandler?.engine.vEscRestoreEnabled = restoreEnabled ? 1 : 0
         keyboardHandler?.engine.vEnglishAutoRestore = preferences.autoRestoreEnglishEnabled ? 1 : 0
         keyboardHandler?.engine.vSoundOnToggle = preferences.beepOnToggle ? 1 : 0
         keyboardHandler?.engine.vSkipWShortcut = preferences.skipWShortcut ? 1 : 0
@@ -685,6 +727,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             let newMethod = currentMethod.next()
             viewModel.selectInputMethod(newMethod)
             
+            // Show on-screen indicator
+            ZKOnScreenIndicatorController.shared.show(inputMethod: newMethod)
+            
             self?.debugWindowController?.logEvent("🔄 Switched input method to \(newMethod.displayName) via hotkey")
         }
         
@@ -707,6 +752,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             let currentTable = viewModel.currentCodeTable
             let newTable = currentTable.next()
             viewModel.selectCodeTable(newTable)
+            
+            // Show on-screen indicator
+            ZKOnScreenIndicatorController.shared.show(codeTable: newTable)
             
             self?.debugWindowController?.logEvent("🔄 Switched code table to \(newTable.displayName) via hotkey")
         }

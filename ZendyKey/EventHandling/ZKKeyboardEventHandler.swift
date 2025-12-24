@@ -98,8 +98,9 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
     // Excluded apps
     @Published var excludedApps: [ExcludedApp] = []
 
-    // Undo typing with Esc key
-    @Published var undoTypingEnabled: Bool = false
+    // Restore to raw keys configuration
+    @Published var restoreKeyEnabled: Bool = false
+    @Published var restoreKeyCode: UInt16 = 53  // Default: ESC (0x35 = 53)
 
     // Managers
     private let macroManager = ZKMacroManager()
@@ -325,15 +326,25 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return event
         }
 
-        // Handle Escape key - undo typing if enabled
-        if keyCode == 0x35 { // Escape
+        // Handle restore key (ESC/Option/Control) - undo typing if enabled
+        if keyCode == restoreKeyCode {
             // Only handle undo if setting is enabled
-            if undoTypingEnabled {
+            if restoreKeyEnabled {
                 // Check if undo is available
                 if engine.canUndoTyping() {
                     let result = engine.undoTyping()
 
                     if result.shouldConsume {
+                        // Get key name for debug logging
+                        let keyName: String
+                        switch restoreKeyCode {
+                        case 53: keyName = "ESC"
+                        case 58: keyName = "Option"
+                        case 59: keyName = "Control"
+                        default: keyName = "Key(\(restoreKeyCode))"
+                        }
+                        debugLogCallback?("🔄 Restore key (\(keyName)) pressed - restoring to raw: \(result.newCharacters)")
+                        
                         // Use synchronized injection to replace Vietnamese text with raw keystrokes
                         injector.injectSync(
                             backspaceCount: result.backspaceCount,

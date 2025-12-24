@@ -76,7 +76,7 @@ struct ZKSettingsView: View {
                         Text("ZendyKey")
                             .font(ZKTypography.headline)
                             .foregroundColor(ZKColors.textPrimary)
-                        Text("Cài đặt")
+                        Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textTertiary)
                     }
@@ -111,16 +111,6 @@ struct ZKSettingsView: View {
                 }
                 
                 Spacer()
-                
-                // Update Badge - Version and update status
-                ZKUpdateBadgeView(
-                    status: .idle,
-                    onCheck: {
-                        ZKAppDelegate.shared?.checkForUpdatesFromUI()
-                    }
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
             }
             .frame(width: 200)
             .background(AdaptiveColors.sidebarBackgroundView(for: colorScheme))
@@ -184,22 +174,74 @@ struct ZKSettingsView: View {
 
 struct GeneralSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
+    @State private var isVietnameseEnabled: Bool = true
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Vietnamese Toggle + Sound
+                ZKSection("Chế độ gõ") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Vietnamese toggle row
+                        ZKToggleRow(
+                            icon: "character",
+                            iconText: "VI",
+                            title: "Gõ tiếng Việt",
+                            subtitle: isVietnameseEnabled ? "Đang gõ tiếng Việt 🇻🇳" : "Đang gõ tiếng Anh 🇬🇧"
+                        ) {
+                            Toggle("", isOn: $isVietnameseEnabled)
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
+                        }
+                        .onChange(of: isVietnameseEnabled) { newValue in
+                            NotificationCenter.default.post(
+                                name: .toggleVietnameseFromSettings,
+                                object: nil,
+                                userInfo: ["enabled": newValue]
+                            )
+                        }
+                        
+                        Divider()
+                        
+                        // Sound toggle row
+                        ZKToggleRow(
+                            icon: "speaker.wave.2.fill",
+                            title: "Phát âm thanh khi chuyển chế độ",
+                            subtitle: "Phát beep khi bấm phím tắt"
+                        ) {
+                            Toggle("", isOn: $viewModel.preferences.beepOnToggle)
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
+                        }
+                    }
+                }
+                .onAppear {
+                    // Listen for external changes
+                    NotificationCenter.default.addObserver(
+                        forName: .vietnameseModeDidChange,
+                        object: nil,
+                        queue: .main
+                    ) { notification in
+                        if let enabled = notification.userInfo?["enabled"] as? Bool {
+                            isVietnameseEnabled = enabled
+                        }
+                    }
+                    // Request current state
+                    NotificationCenter.default.post(name: .requestVietnameseState, object: nil)
+                }
+                
                 // Input Method
-                SettingsGroup(title: "Kiểu gõ") {
+                ZKSection("Kiểu gõ") {
                     ZKInputMethodPicker(selection: $viewModel.preferences.inputMethod)
                 }
                 
                 // Code Table
-                SettingsGroup(title: "Bảng mã") {
+                ZKSection( "Bảng mã") {
                     ZKCodeTablePicker(selection: $viewModel.preferences.codeTable)
                 }
                 
                 // Basic Options
-                SettingsGroup(title: "Tùy chọn") {
+                ZKSection( "Tùy chọn") {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Kiểu gõ hiện đại (oà/uý)", isOn: $viewModel.preferences.modernStyle)
                         Toggle("Kiểm tra chính tả", isOn: $viewModel.preferences.spellCheckEnabled)
@@ -259,15 +301,15 @@ struct HotkeysSettingsSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Hotkey shortcuts group
-                SettingsGroup(title: "Tổ hợp phím tắt") {
+                ZKSection("Tổ hợp phím tắt") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Toggle Vietnamese
                         ZKUnifiedHotkeyRow(
                             rowId: "toggle",
                             icon: "globe",
-                            title: "Bật/Tắt tiếng Việt",
+                            title: "Bật/tắt gõ tiếng Việt",
+                            subtitle: "Mặc định: ⌘⇧V",
                             hotkey: $viewModel.preferences.toggleHotkey,
-                            defaultText: "Mặc định: ⌘⇧V",
                             activeRecordingId: $activeRecordingId,
                             isConflict: { isHotkeyConflict($0, for: .toggleVietnamese) }
                         )
@@ -279,6 +321,7 @@ struct HotkeysSettingsSection: View {
                             rowId: "inputMethod",
                             icon: "keyboard",
                             title: "Đổi kiểu gõ",
+                            subtitle: "Chuyển đổi giữa các kiểu gõ Telex, VNI, VIQR,...",
                             hotkeyOptional: $viewModel.preferences.inputMethodHotkey,
                             placeholder: "Chưa đặt",
                             activeRecordingId: $activeRecordingId,
@@ -292,6 +335,7 @@ struct HotkeysSettingsSection: View {
                             rowId: "codeTable",
                             icon: "tablecells",
                             title: "Đổi bảng mã",
+                            subtitle: "Chuyển đổi Unicode, TCVN3, VNI Windows,...",
                             hotkeyOptional: $viewModel.preferences.codeTableHotkey,
                             placeholder: "Chưa đặt",
                             activeRecordingId: $activeRecordingId,
@@ -300,72 +344,107 @@ struct HotkeysSettingsSection: View {
                     }
                 }
                 
-                // Undo typing with ESC
-                SettingsGroup(title: "Phím khôi phục") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(ZKColors.accent.opacity(0.12))
-                                    .frame(width: 36, height: 36)
-                                
-                                Image(systemName: "arrow.uturn.backward")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(ZKColors.accentGradient)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Hoàn tác gõ tiếng Việt bằng phím Esc")
-                                    .font(ZKTypography.body)
-                                    .foregroundColor(ZKColors.textPrimary)
-                                
-                                Text("Nhấn Esc ngay sau khi gõ để hoàn tác việc bỏ dấu")
-                                    .font(ZKTypography.caption)
-                                    .foregroundColor(ZKColors.textSecondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Toggle("", isOn: $viewModel.preferences.undoTypingEnabled)
+                // Pause Vietnamese temporarily
+                ZKSection("Phím tạm dừng gõ tiếng Việt") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ZKToggleRow(
+                            icon: "pause.fill",
+                            title: "Bật tính năng tạm dừng",
+                            subtitle: "Giữ phím để tạm thời gõ tiếng Anh"
+                        ) {
+                            Toggle("", isOn: $viewModel.preferences.pauseKeyEnabled)
                                 .toggleStyle(ZKToggleStyle())
                                 .labelsHidden()
                         }
                         
-                        Text("Ví dụ: \"tiếng\" → \"tieesng\"")
-                            .font(ZKTypography.caption)
-                            .foregroundColor(ZKColors.textTertiary)
-                            .padding(.leading, 50)
+                        if viewModel.preferences.pauseKeyEnabled {
+                            Divider()
+                            
+                            // Key Selection
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Chọn phím tạm dừng")
+                                    .font(ZKTypography.caption.bold())
+                                    .foregroundColor(ZKColors.textPrimary)
+                                
+                                HStack(spacing: 12) {
+                                    ZKPauseKeyButton(
+                                        symbol: "⌃",
+                                        name: "Control",
+                                        keyCode: 59,
+                                        selectedKeyCode: $viewModel.preferences.pauseKey,
+                                        selectedKeyName: $viewModel.preferences.pauseKeyName
+                                    )
+                                    ZKPauseKeyButton(
+                                        symbol: "⌥",
+                                        name: "Option",
+                                        keyCode: 58,
+                                        selectedKeyCode: $viewModel.preferences.pauseKey,
+                                        selectedKeyName: $viewModel.preferences.pauseKeyName
+                                    )
+                                }
+                                
+                                Text("Mặc định: Option. Ví dụ: giữ ⌥ gõ \"email\" → thả ⌥")
+                                    .font(ZKTypography.caption)
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                            
+                            // Conflict warning
+                            if viewModel.preferences.pauseKeyEnabled && viewModel.preferences.restoreOnEscape &&
+                               viewModel.preferences.pauseKey == viewModel.preferences.restoreKey.rawValue {
+                                ZKConflictWarningView(message: "Phím tạm dừng trùng với phím khôi phục")
+                            }
+                        }
                     }
                 }
                 
-                // Sound settings
-                SettingsGroup(title: "Âm thanh") {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(ZKColors.accent.opacity(0.12))
-                                .frame(width: 36, height: 36)
-                            
-                            Image(systemName: "speaker.wave.2.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(ZKColors.accentGradient)
+                // Restore to original (without tones)
+                ZKSection("Phím khôi phục nguyên gốc") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ZKToggleRow(
+                            icon: "arrow.counterclockwise",
+                            title: "Bật khôi phục nguyên gốc",
+                            subtitle: "Khôi phục từ về dạng chưa bỏ dấu"
+                        ) {
+                            Toggle("", isOn: $viewModel.preferences.restoreOnEscape)
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
                         }
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Phát âm thanh khi chuyển chế độ")
-                                .font(ZKTypography.body)
-                                .foregroundColor(ZKColors.textPrimary)
+                        if viewModel.preferences.restoreOnEscape {
+                            Divider()
                             
-                            Text("Phát beep khi bấm phím tắt")
-                                .font(ZKTypography.caption)
-                                .foregroundColor(ZKColors.textSecondary)
+                            // Key Selection
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Chọn phím khôi phục")
+                                    .font(ZKTypography.caption.bold())
+                                    .foregroundColor(ZKColors.textPrimary)
+                                
+                                HStack(spacing: 12) {
+                                    ZKRestoreKeyButton(
+                                        symbol: "⎋",
+                                        name: "ESC",
+                                        restoreKey: .esc,
+                                        selectedKey: $viewModel.preferences.restoreKey
+                                    )
+                                    ZKRestoreKeyButton(
+                                        symbol: "⌥",
+                                        name: "Option",
+                                        restoreKey: .option,
+                                        selectedKey: $viewModel.preferences.restoreKey
+                                    )
+                                    ZKRestoreKeyButton(
+                                        symbol: "⌃",
+                                        name: "Control",
+                                        restoreKey: .control,
+                                        selectedKey: $viewModel.preferences.restoreKey
+                                    )
+                                }
+                                
+                                Text("Mặc định: ESC. Ví dụ: \"việt\" → ESC → \"vieejt\"")
+                                    .font(ZKTypography.caption)
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
                         }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $viewModel.preferences.beepOnToggle)
-                            .toggleStyle(ZKToggleStyle())
-                            .labelsHidden()
                     }
                 }
             }
@@ -377,12 +456,14 @@ struct HotkeysSettingsSection: View {
             ZKAppDelegate.shared?.setHotkeyRecordingState(newValue != nil)
         }
         .onChange(of: viewModel.preferences.inputMethodHotkey) { _ in
-            // Trigger auto-save and menu rebuild via objectWillChange
+            // Trigger auto-save and menu rebuild
             viewModel.objectWillChange.send()
+            NotificationCenter.default.post(name: .hotkeySettingsDidChange, object: nil)
         }
         .onChange(of: viewModel.preferences.codeTableHotkey) { _ in
-            // Trigger auto-save and menu rebuild via objectWillChange
+            // Trigger auto-save and menu rebuild
             viewModel.objectWillChange.send()
+            NotificationCenter.default.post(name: .hotkeySettingsDidChange, object: nil)
         }
         .onDisappear {
             // Reset recording state when view disappears
@@ -436,9 +517,10 @@ struct ZKUnifiedHotkeyRow: View {
     let rowId: String
     let icon: String
     let title: String
-    var defaultText: String? = nil
+    var subtitle: String? = nil
     var defaultHotkey: Hotkey? = nil
     var placeholder: String = "Chưa đặt"
+    var iconBackground: AnyShapeStyle? = nil
     
     // Conflict detection
     var isConflict: ((Hotkey) -> Bool)? = nil
@@ -465,125 +547,107 @@ struct ZKUnifiedHotkeyRow: View {
     }
     
     // Initializer for required hotkey
-    init(rowId: String, icon: String, title: String, hotkey: Binding<Hotkey>, defaultText: String? = nil, defaultHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]), activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
+    init(rowId: String, icon: String, title: String, subtitle: String? = nil, hotkey: Binding<Hotkey>, defaultHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]), iconBackground: AnyShapeStyle? = nil, activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
         self.rowId = rowId
         self.icon = icon
         self.title = title
+        self.subtitle = subtitle
         self._hotkey = hotkey
         self.hotkeyOptional = nil
-        self.defaultText = defaultText
         self.defaultHotkey = defaultHotkey
         self.placeholder = ""
+        self.iconBackground = iconBackground
         self._activeRecordingId = activeRecordingId
         self.isConflict = isConflict
     }
     
     // Initializer for optional hotkey
-    init(rowId: String, icon: String, title: String, hotkeyOptional: Binding<Hotkey?>, placeholder: String = "Chưa đặt", activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
+    init(rowId: String, icon: String, title: String, subtitle: String? = nil, hotkeyOptional: Binding<Hotkey?>, placeholder: String = "Chưa đặt", iconBackground: AnyShapeStyle? = nil, activeRecordingId: Binding<String?>, isConflict: ((Hotkey) -> Bool)? = nil) {
         self.rowId = rowId
         self.icon = icon
         self.title = title
+        self.subtitle = subtitle
         self._hotkey = .constant(Hotkey(keyCode: 0, modifiers: []))
         self.hotkeyOptional = hotkeyOptional
-        self.defaultText = nil
         self.defaultHotkey = nil
         self.placeholder = placeholder
+        self.iconBackground = iconBackground
         self._activeRecordingId = activeRecordingId
         self.isConflict = isConflict
     }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 12) {
-                // Icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ZKColors.accent.opacity(0.12))
-                        .frame(width: 36, height: 36)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(ZKColors.accentGradient)
-                }
-                
-                // Title
-                Text(title)
-                    .font(ZKTypography.body)
-                    .foregroundColor(ZKColors.textPrimary)
-                
-                Spacer()
-                
-                // Recorder
-                Button(action: startRecording) {
-                    HStack(spacing: 8) {
-                        Image(systemName: isRecording ? "keyboard.badge.ellipsis" : "keyboard")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(isRecording ? ZKColors.accent : ZKColors.textSecondary)
-                        
-                        Text(displayText)
-                            .font(ZKTypography.body.weight(hasHotkey ? .semibold : .regular))
-                            .foregroundColor(isRecording ? ZKColors.accent : (hasHotkey ? ZKColors.textPrimary : ZKColors.textTertiary))
-                            .lineLimit(1)
+            // Use ZKToggleRow for icon/title/subtitle with custom trailing content
+            ZKToggleRow(
+                icon: icon,
+                iconBackground: iconBackground,
+                title: title,
+                subtitle: subtitle
+            ) {
+                HStack(spacing: 8) {
+                    // Recorder button
+                    Button(action: startRecording) {
+                        HStack(spacing: 8) {
+                            Image(systemName: isRecording ? "keyboard.badge.ellipsis" : "keyboard")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(isRecording ? ZKColors.accent : ZKColors.textSecondary)
+                            
+                            Text(displayText)
+                                .font(ZKTypography.body.weight(hasHotkey ? .semibold : .regular))
+                                .foregroundColor(isRecording ? ZKColors.accent : (hasHotkey ? ZKColors.textPrimary : ZKColors.textTertiary))
+                                .lineLimit(1)
+                        }
+                        .frame(width: recorderWidth, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(isRecording ? ZKColors.accent.opacity(0.1) : ZKColors.glassBackground.opacity(0.5))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isRecording ? ZKColors.accent : ZKColors.glassBorder, lineWidth: 1)
+                                )
+                        )
+                        .scaleEffect(isHovered ? 1.02 : 1.0)
                     }
-                    .frame(width: recorderWidth, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isHovered = hovering
+                        }
+                    }
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isRecording ? ZKColors.accent.opacity(0.1) : ZKColors.glassBackground.opacity(0.5))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(isRecording ? ZKColors.accent : ZKColors.glassBorder, lineWidth: 1)
-                            )
-                    )
-                    .scaleEffect(isHovered ? 1.02 : 1.0)
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isHovered = hovering
-                    }
-                }
-                .background(
-                    UnifiedKeyEventHandler(
-                        isRecording: Binding(
-                            get: { isRecording },
-                            set: { newValue in
-                                if newValue {
-                                    activeRecordingId = rowId
-                                } else if activeRecordingId == rowId {
-                                    activeRecordingId = nil
+                        UnifiedKeyEventHandler(
+                            isRecording: Binding(
+                                get: { isRecording },
+                                set: { newValue in
+                                    if newValue {
+                                        activeRecordingId = rowId
+                                    } else if activeRecordingId == rowId {
+                                        activeRecordingId = nil
+                                    }
                                 }
-                            }
-                        ),
-                        hotkey: hotkeyOptional != nil ? nil : $hotkey,
-                        hotkeyOptional: hotkeyOptional,
-                        onConflict: { hotkey in
-                            showConflict(for: hotkey)
-                        },
-                        isConflict: isConflict
+                            ),
+                            hotkey: hotkeyOptional != nil ? nil : $hotkey,
+                            hotkeyOptional: hotkeyOptional,
+                            onConflict: { hotkey in
+                                showConflict(for: hotkey)
+                            },
+                            isConflict: isConflict
+                        )
                     )
-                )
-                
-                // Clear button - always reserve space for alignment
-                Button(action: clearHotkey) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(shouldShowClearButton ? ZKColors.textTertiary : Color.clear)
-                        .font(.system(size: 18))
+                    
+                    // Clear button
+                    Button(action: clearHotkey) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(shouldShowClearButton ? ZKColors.textTertiary : Color.clear)
+                            .font(.system(size: 18))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!shouldShowClearButton)
+                    .frame(width: clearButtonWidth)
                 }
-                .buttonStyle(.plain)
-                .disabled(!shouldShowClearButton)
-                .frame(width: clearButtonWidth)
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-            
-            // Default text (for required hotkey like toggle Vietnamese)
-            if let defaultText = defaultText {
-                Text(defaultText)
-                    .font(ZKTypography.caption)
-                    .foregroundColor(ZKColors.textTertiary)
-                    .padding(.leading, 50)
             }
             
             // Inline conflict warning
@@ -605,6 +669,9 @@ struct ZKUnifiedHotkeyRow: View {
     }
     
     private func startRecording() {
+        // Immediately disable hotkeys to prevent toggle during recording
+        ZKAppDelegate.shared?.setHotkeyRecordingState(true)
+        
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             activeRecordingId = rowId
         }
@@ -1018,7 +1085,7 @@ struct QuickTypingSettingsSection: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsGroup(title: "Quick Telex") {
+                ZKSection( "Quick Telex") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Bật Quick Telex", isOn: $viewModel.preferences.quickTelexEnabled)
                         
@@ -1028,7 +1095,7 @@ struct QuickTypingSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Quick Consonant - Đầu từ") {
+                ZKSection( "Quick Consonant - Đầu từ") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Bật Quick Start Consonant", isOn: $viewModel.preferences.quickStartConsonantEnabled)
                         
@@ -1038,7 +1105,7 @@ struct QuickTypingSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Quick Consonant - Cuối từ") {
+                ZKSection( "Quick Consonant - Cuối từ") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Bật Quick End Consonant", isOn: $viewModel.preferences.quickEndConsonantEnabled)
                         
@@ -1062,7 +1129,7 @@ struct AdvancedSettingsSection: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsGroup(title: "Chính tả & Viết hoa") {
+                ZKSection( "Chính tả & Viết hoa") {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Khôi phục nếu sai chính tả", isOn: $viewModel.preferences.restoreIfWrongSpelling)
                         Toggle("Tự động viết hoa chữ đầu câu", isOn: $viewModel.preferences.upperCaseFirstChar)
@@ -1070,7 +1137,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Đặt dấu") {
+                ZKSection( "Đặt dấu") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Đặt dấu tự do (Free Mark)", isOn: $viewModel.preferences.freeMarkEnabled)
                         
@@ -1086,7 +1153,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Telex") {
+                ZKSection( "Telex") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Bỏ qua w→ư", isOn: $viewModel.preferences.skipWShortcut)
                         
@@ -1096,7 +1163,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Ghi nhớ ứng dụng") {
+                ZKSection( "Ghi nhớ ứng dụng") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Nhớ ngôn ngữ theo ứng dụng", isOn: $viewModel.preferences.perAppModeEnabled)
                         
@@ -1106,7 +1173,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Tạm tắt") {
+                ZKSection( "Tạm tắt") {
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle("Tạm tắt chính tả bằng phím Ctrl", isOn: $viewModel.preferences.tempOffSpellingEnabled)
@@ -1126,7 +1193,7 @@ struct AdvancedSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Smart Switch") {
+                ZKSection( "Smart Switch") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Main Smart Switch toggle
                         VStack(alignment: .leading, spacing: 4) {
@@ -1184,7 +1251,7 @@ struct AdvancedSettingsSection: View {
                 }
                 
                 // Window Title Rules
-                SettingsGroup(title: "Quy tắc theo Window Title") {
+                ZKSection( "Quy tắc theo Window Title") {
                     if #available(macOS 13.0, *) {
                         ZKWindowTitleRulesView()
                     } else {
@@ -1195,7 +1262,7 @@ struct AdvancedSettingsSection: View {
                 }
                 
                 // Compatibility Settings
-                SettingsGroup(title: "Tương thích") {
+                ZKSection( "Tương thích") {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle("Sửa lỗi Chromium (Chrome/Arc/Edge)", isOn: $viewModel.preferences.fixChromiumBrowser)
@@ -1224,18 +1291,12 @@ struct AdvancedSettingsSection: View {
                 }
                 
                 // Per-App SendKeyStepByStep  
-                SettingsGroup(title: "Ứng dụng cần gửi từng phím") {
+                ZKSection( "Ứng dụng cần gửi từng phím") {
                     SendKeyStepByStepAppsSettingsSection(viewModel: viewModel)
                 }
                 
-                // Pause Key Configuration
-                ZKPauseKeyConfigSection(viewModel: viewModel)
-                
-                // Restore Key Configuration  
-                ZKRestoreKeyConfigSection(viewModel: viewModel)
-                
                 // IMKit Mode (Experimental) - Placed before Debug
-                SettingsGroup(title: "Input Method Kit (Thử nghiệm)") {
+                ZKSection( "Input Method Kit (Thử nghiệm)") {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle("Bật IMKit Mode", isOn: $viewModel.preferences.imkitEnabled)
@@ -1321,7 +1382,7 @@ struct AdvancedSettingsSection: View {
                 }
                 
                 // Debug - At the very end
-                SettingsGroup(title: "Debug") {
+                ZKSection( "Debug") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Bật chế độ Debug", isOn: $viewModel.preferences.debugModeEnabled)
                         
@@ -1352,7 +1413,7 @@ struct AppearanceSettingsSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Accessibility Permission
-                SettingsGroup(title: "Quyền truy cập") {
+                ZKSection( "Quyền truy cập") {
                     HStack {
                         Image(systemName: hasAccessibilityPermission ? "checkmark.shield.fill" : "xmark.shield.fill")
                             .foregroundColor(hasAccessibilityPermission ? .green : .red)
@@ -1380,7 +1441,7 @@ struct AppearanceSettingsSection: View {
                 }
                 
                 // Theme selection (Dark/Light/System)
-                SettingsGroup(title: "Giao diện") {
+                ZKSection( "Giao diện") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Chế độ màu:")
                             .font(.subheadline)
@@ -1396,7 +1457,7 @@ struct AppearanceSettingsSection: View {
                 }
                 
                 // Sound Settings
-                SettingsGroup(title: "Âm thanh") {
+                ZKSection( "Âm thanh") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Phát âm thanh khi chuyển ngôn ngữ", isOn: $viewModel.preferences.beepOnToggle)
                         
@@ -1407,7 +1468,7 @@ struct AppearanceSettingsSection: View {
                 }
                 
                 // Menu Bar Icon Settings
-                SettingsGroup(title: "Icon thanh Menu") {
+                ZKSection( "Icon thanh Menu") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Icon size slider
                         VStack(alignment: .leading, spacing: 8) {
@@ -1446,7 +1507,7 @@ struct AppearanceSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Dock") {
+                ZKSection( "Dock") {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Hiển thị biểu tượng trên thanh Dock", isOn: $viewModel.preferences.showDockIcon)
                         
@@ -1456,13 +1517,13 @@ struct AppearanceSettingsSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Khởi động") {
+                ZKSection( "Khởi động") {
                     Toggle("Khởi động cùng hệ thống", isOn: $viewModel.preferences.startAtLogin)
                 }
                 
                 // Beep Volume Slider
                 if viewModel.preferences.beepOnToggle {
-                    SettingsGroup(title: "Âm lượng") {
+                    ZKSection( "Âm lượng") {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Âm lượng:")
@@ -1483,7 +1544,7 @@ struct AppearanceSettingsSection: View {
                 }
                 
                 // Reset to Defaults
-                SettingsGroup(title: "Khôi phục mặc định") {
+                ZKSection( "Khôi phục mặc định") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Đặt lại tất cả cài đặt về mặc định. Dữ liệu macro sẽ được giữ nguyên.")
                             .font(.caption)
@@ -1789,7 +1850,7 @@ struct MacroSettingsSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Settings Group
-                SettingsGroup(title: "Cài đặt Macro") {
+                ZKSection( "Cài đặt Macro") {
                     VStack(alignment: .leading, spacing: 10) {
                         Toggle("Bật Macro", isOn: $prefsViewModel.preferences.macroEnabled)
                         
@@ -1803,7 +1864,7 @@ struct MacroSettingsSection: View {
                 }
                 
                 // Add new macro
-                SettingsGroup(title: "Thêm macro mới") {
+                ZKSection( "Thêm macro mới") {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(alignment: .bottom, spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
@@ -1839,7 +1900,7 @@ struct MacroSettingsSection: View {
                 }
                 
                 // Macro list
-                SettingsGroup(title: "Danh sách macro (\(viewModel.macros.count))") {
+                ZKSection( "Danh sách macro (\(viewModel.macros.count))") {
                     VStack(alignment: .leading, spacing: 12) {
                         // Action buttons
                         HStack(spacing: 12) {
@@ -1993,7 +2054,7 @@ struct ZKConvertToolSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Input text
-                SettingsGroup(title: "Văn bản gốc") {
+                ZKSection( "Văn bản gốc") {
                     TextEditor(text: $viewModel.inputText)
                         .font(.body)
                         .frame(height: 100)
@@ -2002,7 +2063,7 @@ struct ZKConvertToolSection: View {
                 }
                 
                 // Conversion options
-                SettingsGroup(title: "Chuyển đổi chữ hoa/thường") {
+                ZKSection( "Chuyển đổi chữ hoa/thường") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 20) {
                             Toggle("Viết hoa tất cả", isOn: $viewModel.toAllCaps)
@@ -2046,12 +2107,12 @@ struct ZKConvertToolSection: View {
                     }
                 }
                 
-                SettingsGroup(title: "Tùy chọn khác") {
+                ZKSection( "Tùy chọn khác") {
                     Toggle("Xóa dấu tiếng Việt", isOn: $viewModel.removeMark)
                 }
                 
                 // Code table conversion
-                SettingsGroup(title: "Chuyển đổi bảng mã") {
+                ZKSection( "Chuyển đổi bảng mã") {
                     HStack(spacing: 15) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Từ:")
@@ -2100,7 +2161,7 @@ struct ZKConvertToolSection: View {
                 }
                 
                 // Output text
-                SettingsGroup(title: "Kết quả") {
+                ZKSection( "Kết quả") {
                     VStack(alignment: .leading, spacing: 8) {
                         TextEditor(text: $viewModel.outputText)
                             .font(.body)
@@ -2292,30 +2353,7 @@ struct ZKCodeTableButton: View {
     }
 }
 
-struct SettingsGroup<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: Content
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(ZKTypography.caption)
-                .foregroundColor(ZKColors.textTertiary)
-                .textCase(.uppercase)
-            
-            content
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(ZKColors.glassBorder, lineWidth: 1)
-                        )
-                )
-        }
-    }
-}
+// SettingsGroup removed - using ZKSection from Components folder
 
 struct SettingsRadioButton: View {
     let title: String
@@ -2365,7 +2403,7 @@ struct InputSourcesSettingsSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Header with explanation
-                SettingsGroup(title: "Quản lý Input Sources") {
+                ZKSection( "Quản lý Input Sources") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("ZendyKey có thể tự động bật/tắt tính năng thêm dấu tiếng Việt dựa trên Input Source hiện tại của hệ điều hành.")
                             .font(.subheadline)
@@ -2395,7 +2433,7 @@ struct InputSourcesSettingsSection: View {
                 }
 
                 // Input Sources List
-                SettingsGroup(title: "Cấu hình theo Input Source") {
+                ZKSection( "Cấu hình theo Input Source") {
                     VStack(alignment: .leading, spacing: 8) {
                         if viewModel.inputSources.isEmpty {
                             HStack {
@@ -2437,7 +2475,7 @@ struct InputSourcesSettingsSection: View {
 
                 // Vietnamese Input Sources Detection
                 if !viewModel.vietnameseInputSources.isEmpty {
-                    SettingsGroup(title: "Input Sources tiếng Việt đã phát hiện") {
+                    ZKSection( "Input Sources tiếng Việt đã phát hiện") {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(viewModel.vietnameseInputSources) { source in
                                 HStack(spacing: 12) {

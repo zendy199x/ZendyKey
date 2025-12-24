@@ -9,6 +9,81 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Indicator Types
+
+enum ZKIndicatorType {
+    case language(isVietnamese: Bool)
+    case inputMethod(InputMethod)
+    case codeTable(CodeTable)
+    
+    var displayText: String {
+        switch self {
+        case .language(let isVietnamese):
+            return isVietnamese ? "VI" : "EN"
+        case .inputMethod(let method):
+            return method.shortDisplayName
+        case .codeTable(let table):
+            return table.shortDisplayName
+        }
+    }
+    
+    var borderColor: Color {
+        switch self {
+        case .language(let isVietnamese):
+            return isVietnamese ? Color(red: 0.85, green: 0.15, blue: 0.15) : Color(red: 0.0, green: 0.4, blue: 0.8)
+        case .inputMethod:
+            return Color(red: 0.2, green: 0.7, blue: 0.5) // Teal
+        case .codeTable:
+            return Color(red: 0.5, green: 0.3, blue: 0.9) // Purple
+        }
+    }
+    
+    var glowColor: Color {
+        switch self {
+        case .language(let isVietnamese):
+            return isVietnamese ? Color.red.opacity(0.5) : Color.blue.opacity(0.5)
+        case .inputMethod:
+            return Color.purple.opacity(0.5)
+        case .codeTable:
+            return Color.teal.opacity(0.5)
+        }
+    }
+    
+    var borderGradient: AngularGradient {
+        let baseColor = borderColor
+        let colors = [baseColor, baseColor.opacity(0.7), baseColor]
+        return AngularGradient(colors: colors, center: .center)
+    }
+}
+
+// MARK: - Input Method Short Name Extension
+
+extension InputMethod {
+    var shortDisplayName: String {
+        switch self {
+        case .telex: return "Telex"
+        case .vni: return "VNI"
+        case .viqr: return "VIQR"
+        case .simpleTelex1: return "ST1"
+        case .simpleTelex2: return "ST2"
+        }
+    }
+}
+
+// MARK: - Code Table Short Name Extension
+
+extension CodeTable {
+    var shortDisplayName: String {
+        switch self {
+        case .unicode: return "UNI"
+        case .tcvn3: return "TCVN3"
+        case .vniWindows: return "VNI"
+        case .unicodeCompound: return "UNC"
+        case .vietnameseLocaleCP1258: return "CP1258"
+        }
+    }
+}
+
 /// On-screen indicator controller
 class ZKOnScreenIndicatorController {
     static let shared = ZKOnScreenIndicatorController()
@@ -19,10 +94,25 @@ class ZKOnScreenIndicatorController {
     
     private init() {}
     
-    /// Show the indicator with the current mode
+    /// Show the indicator with the current mode (legacy compatibility)
     func show(isVietnamese: Bool) {
+        show(type: .language(isVietnamese: isVietnamese))
+    }
+    
+    /// Show the indicator with input method
+    func show(inputMethod: InputMethod) {
+        show(type: .inputMethod(inputMethod))
+    }
+    
+    /// Show the indicator with code table
+    func show(codeTable: CodeTable) {
+        show(type: .codeTable(codeTable))
+    }
+    
+    /// Show the indicator with specific type
+    func show(type: ZKIndicatorType) {
         DispatchQueue.main.async { [weak self] in
-            self?.showIndicator(isVietnamese: isVietnamese)
+            self?.showIndicator(type: type)
         }
     }
     
@@ -33,9 +123,11 @@ class ZKOnScreenIndicatorController {
         }
     }
     
-    private func showIndicator(isVietnamese: Bool) {
+    private func showIndicator(type: ZKIndicatorType) {
         // Cancel any existing hide timer
         hideTimer?.invalidate()
+        
+        let windowSize: CGFloat = 100
         
         // Create or update the window
         if indicatorWindow == nil {
@@ -43,11 +135,10 @@ class ZKOnScreenIndicatorController {
         }
         
         // Update content
-        hostingView?.rootView = ZKOnScreenIndicatorView(isVietnamese: isVietnamese)
+        hostingView?.rootView = ZKOnScreenIndicatorView(type: type)
         
         // Position window at top center of main screen
         if let screen = NSScreen.main {
-            let windowSize: CGFloat = 100
             let screenCenter = screen.frame.width / 2
             let yPosition = screen.frame.height - windowSize - 120 // 120pt from top
             
@@ -105,7 +196,7 @@ class ZKOnScreenIndicatorController {
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
         
-        let view = ZKOnScreenIndicatorView(isVietnamese: true)
+        let view = ZKOnScreenIndicatorView(type: .language(isVietnamese: true))
         let hostingView = NSHostingView(rootView: view)
         window.contentView = hostingView
         
@@ -117,35 +208,19 @@ class ZKOnScreenIndicatorController {
 // MARK: - Premium Indicator View
 
 struct ZKOnScreenIndicatorView: View {
-    let isVietnamese: Bool
-    
-    // Flag colors
-    private var borderColor: Color {
-        isVietnamese ? Color(red: 0.85, green: 0.15, blue: 0.15) : Color(red: 0.0, green: 0.4, blue: 0.8)
-    }
-    
-    private var glowColor: Color {
-        isVietnamese ? Color.red.opacity(0.5) : Color.blue.opacity(0.5)
-    }
-    
-    private var borderGradient: AngularGradient {
-        let colors = isVietnamese
-            ? [Color(red: 0.85, green: 0.15, blue: 0.15), Color(red: 1.0, green: 0.3, blue: 0.3), Color(red: 0.85, green: 0.15, blue: 0.15)]
-            : [Color(red: 0.0, green: 0.4, blue: 0.8), Color(red: 0.3, green: 0.6, blue: 1.0), Color(red: 0.0, green: 0.4, blue: 0.8)]
-        return AngularGradient(colors: colors, center: .center)
-    }
+    let type: ZKIndicatorType
     
     var body: some View {
         ZStack {
             // Outer glow ring
             Circle()
-                .stroke(glowColor, lineWidth: 8)
+                .stroke(type.glowColor, lineWidth: 8)
                 .blur(radius: 8)
                 .frame(width: 80, height: 80)
             
             // Main ring with gradient
             Circle()
-                .stroke(borderGradient, lineWidth: 4)
+                .stroke(type.borderGradient, lineWidth: 4)
                 .frame(width: 80, height: 80)
             
             // Inner subtle glass effect
@@ -155,23 +230,22 @@ struct ZKOnScreenIndicatorView: View {
                 .blur(radius: 1)
             
             // Content
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 // Logo
                 if let logo = NSImage(named: "ZendyKeyLogo") {
                     Image(nsImage: logo)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    Text(isVietnamese ? "🇻🇳" : "🇬🇧")
-                        .font(.system(size: 28))
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 
-                // Label - same color as border for visibility
-                Text(isVietnamese ? "VI" : "EN")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(borderColor)
+                // Main text (VI/EN, Telex, Unicode, etc.)
+                Text(type.displayText)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(type.borderColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
         .frame(width: 90, height: 90)
@@ -179,9 +253,19 @@ struct ZKOnScreenIndicatorView: View {
 }
 
 #Preview {
-    HStack(spacing: 30) {
-        ZKOnScreenIndicatorView(isVietnamese: true)
-        ZKOnScreenIndicatorView(isVietnamese: false)
+    VStack(spacing: 30) {
+        HStack(spacing: 30) {
+            ZKOnScreenIndicatorView(type: .language(isVietnamese: true))
+            ZKOnScreenIndicatorView(type: .language(isVietnamese: false))
+        }
+        HStack(spacing: 30) {
+            ZKOnScreenIndicatorView(type: .inputMethod(.telex))
+            ZKOnScreenIndicatorView(type: .inputMethod(.vni))
+        }
+        HStack(spacing: 30) {
+            ZKOnScreenIndicatorView(type: .codeTable(.unicode))
+            ZKOnScreenIndicatorView(type: .codeTable(.tcvn3))
+        }
     }
     .padding(50)
     .background(Color.black.opacity(0.3))

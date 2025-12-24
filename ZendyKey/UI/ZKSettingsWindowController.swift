@@ -20,7 +20,8 @@ class ZKSettingsWindowController: NSWindowController {
             defer: false
         )
 
-        window.title = "Cài đặt ZendyKey"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        window.title = "ZendyKey v\(version)"
         window.titlebarAppearsTransparent = false
         window.isReleasedWhenClosed = false
         window.level = .floating

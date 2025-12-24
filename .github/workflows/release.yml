@@ -82,6 +82,7 @@ jobs:
           echo "📝 Updated app version to $VERSION"
 
       - name: Create DMG
+        id: create_dmg
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           APP_PATH="build/DerivedData/Build/Products/Release/ZendyKey.app"
@@ -111,8 +112,8 @@ jobs:
           # Generate checksum
           shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
           
-          # Store checksum in env for release notes
-          echo "CHECKSUM=$(cat $DMG_NAME.sha256)" >> $GITHUB_ENV
+          # Store checksum as step output for release notes
+          echo "checksum=$(cat $DMG_NAME.sha256)" >> $GITHUB_OUTPUT
           
           # Clean up
           rm -rf "$STAGING_DIR"
@@ -180,7 +181,7 @@ jobs:
             
             **Checksum (SHA-256):**
             ```
-            ${{ env.CHECKSUM }}
+            ${{ steps.create_dmg.outputs.checksum }}
             ```
           draft: false
           prerelease: false

@@ -74,6 +74,11 @@
 		E3456789012CDEF012345678 /* ZKStatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3456789012CDEF012345678 /* ZKStatisticsManager.swift */; };
 		E4567890123DEF0123456789 /* ZKStatisticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4567890123DEF0123456789 /* ZKStatisticsSection.swift */; };
 		E5678901234EF01234567890 /* ZKActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5678901234EF01234567890 /* ZKActionButton.swift */; };
+		E6789012345F012345678901 /* ZKSegmentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6789012345F012345678901 /* ZKSegmentPicker.swift */; };
+		E7890123456F0123456789012 /* ZKRadioGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7890123456F0123456789012 /* ZKRadioGroup.swift */; };
+		E8901234567F01234567890123 /* ZKSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8901234567F01234567890123 /* ZKSection.swift */; };
+		E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9012345678F012345678901234 /* ZKSwitchButton.swift */; };
+		EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB345678901F01234567890123456 /* ZKToggleRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -147,6 +152,11 @@
 		F4567890123DEF0123456789 /* ZKStatisticsSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKStatisticsSection.swift; sourceTree = "<group>"; };
 		F515913893AC85EBBA2C18FE /* ZKWelcomeStep.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ZKWelcomeStep.swift; path = ZKWelcomeStep.swift; sourceTree = "<group>"; };
 		F5678901234EF01234567890 /* ZKActionButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKActionButton.swift; sourceTree = "<group>"; };
+		F6789012345F012345678901 /* ZKSegmentPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSegmentPicker.swift; sourceTree = "<group>"; };
+		F7890123456F0123456789012 /* ZKRadioGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKRadioGroup.swift; sourceTree = "<group>"; };
+		F8901234567F01234567890123 /* ZKSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSection.swift; sourceTree = "<group>"; };
+		F9012345678F012345678901234 /* ZKSwitchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSwitchButton.swift; sourceTree = "<group>"; };
+		FB345678901F01234567890123456 /* ZKToggleRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKToggleRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -225,39 +235,47 @@
 			sourceTree = "<group>";
 		};
 		A5000007 /* UI */ = {
-			isa = PBXGroup;
-			children = (
-				A5000032 /* Design */,
-				A2000027 /* ZKDonationView.swift */,
-				A2000011 /* ZKHotkeyRecorderView.swift */,
-				A2000012 /* ZKPreferencesWindowController.swift */,
-				A200000E /* ZKDebugWindowController.swift */,
-				A200000D /* ZKStatusBarManager.swift */,
-				A200000F /* ZKPreferencesView.swift */,
-				A2000010 /* ZKPreferencesViewModel.swift */,
-				A200001C /* ZKSettingsView.swift */,
-				A200001D /* ZKSettingsWindowController.swift */,
-				A2000020 /* ZKStatusBarViewModel.swift */,
-				A2000021 /* ZKDebugViewModel.swift */,
-				A2000022 /* ZKDebugView.swift */,
-				A2000023 /* ZKMacroManagementViewModel.swift */,
-				A2000024 /* ZKConvertToolViewModel.swift */,
-				A2000025 /* ZKExcludedAppsView.swift */,
-				A2000026 /* ZKWindowTitleRulesView.swift */,
-				A2000032 /* ZKStatusBarPopoverView.swift */,
-				D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */,
-				4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */,
-				510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */,
-				18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
-				F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */,
-				F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */,
-				F4567890123DEF0123456789 /* ZKStatisticsSection.swift */,
-				A9D5FF796EC3754192CAF016 /* Onboarding */,
-				A9D5FF796EC3754192CAF017 /* Components */,
-			);
-			path = UI;
-			sourceTree = "<group>";
-		};
+		isa = PBXGroup;
+		children = (
+			A5000032 /* Design */,
+			A9D5FF796EC3754192CAF080 /* MenuBar */,
+			A2000027 /* ZKDonationView.swift */,
+			A2000011 /* ZKHotkeyRecorderView.swift */,
+			A2000012 /* ZKPreferencesWindowController.swift */,
+			A200000E /* ZKDebugWindowController.swift */,
+			A200000F /* ZKPreferencesView.swift */,
+			A2000010 /* ZKPreferencesViewModel.swift */,
+			A200001C /* ZKSettingsView.swift */,
+			A200001D /* ZKSettingsWindowController.swift */,
+			A2000021 /* ZKDebugViewModel.swift */,
+			A2000022 /* ZKDebugView.swift */,
+			A2000023 /* ZKMacroManagementViewModel.swift */,
+			A2000024 /* ZKConvertToolViewModel.swift */,
+			A2000025 /* ZKExcludedAppsView.swift */,
+			A2000026 /* ZKWindowTitleRulesView.swift */,
+			D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */,
+			4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */,
+			510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */,
+			F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */,
+			F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */,
+			F4567890123DEF0123456789 /* ZKStatisticsSection.swift */,
+			A9D5FF796EC3754192CAF016 /* Onboarding */,
+			A9D5FF796EC3754192CAF017 /* Components */,
+		);
+		path = UI;
+		sourceTree = "<group>";
+	};
+	A9D5FF796EC3754192CAF080 /* MenuBar */ = {
+		isa = PBXGroup;
+		children = (
+			A200000D /* ZKStatusBarManager.swift */,
+			A2000032 /* ZKStatusBarPopoverView.swift */,
+			A2000020 /* ZKStatusBarViewModel.swift */,
+			18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
+		);
+		path = MenuBar;
+		sourceTree = "<group>";
+	};
 		A5000008 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
@@ -338,6 +356,11 @@
 			isa = PBXGroup;
 			children = (
 				F5678901234EF01234567890 /* ZKActionButton.swift */,
+				F6789012345F012345678901 /* ZKSegmentPicker.swift */,
+				F7890123456F0123456789012 /* ZKRadioGroup.swift */,
+				F8901234567F01234567890123 /* ZKSection.swift */,
+				F9012345678F012345678901234 /* ZKSwitchButton.swift */,
+				FB345678901F01234567890123456 /* ZKToggleRow.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -484,6 +507,11 @@
 				6B67BE96ECA15ED1BE1E9A4D /* ZKPermissionStep.swift in Sources */,
 				C2A8B17D6D14167F9597E9C7 /* ZKInputMethodStep.swift in Sources */,
 				E5678901234EF01234567890 /* ZKActionButton.swift in Sources */,
+				E6789012345F012345678901 /* ZKSegmentPicker.swift in Sources */,
+				E7890123456F0123456789012 /* ZKRadioGroup.swift in Sources */,
+				E8901234567F01234567890123 /* ZKSection.swift in Sources */,
+				E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */,
+				EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

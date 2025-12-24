@@ -17,7 +17,12 @@ enum ZKSharedSettingsKey: String {
     case toggleHotkeyCode = "ZendyKey.toggleHotkeyCode"
     case toggleHotkeyModifiers = "ZendyKey.toggleHotkeyModifiers"
     case toggleHotkeyIsModifierOnly = "ZendyKey.toggleHotkeyIsModifierOnly"
-    case undoTypingEnabled = "ZendyKey.undoTypingEnabled"
+    case inputMethodHotkeyCode = "ZendyKey.inputMethodHotkeyCode"
+    case inputMethodHotkeyModifiers = "ZendyKey.inputMethodHotkeyModifiers"
+    case inputMethodHotkeyIsModifierOnly = "ZendyKey.inputMethodHotkeyIsModifierOnly"
+    case codeTableHotkeyCode = "ZendyKey.codeTableHotkeyCode"
+    case codeTableHotkeyModifiers = "ZendyKey.codeTableHotkeyModifiers"
+    case codeTableHotkeyIsModifierOnly = "ZendyKey.codeTableHotkeyIsModifierOnly"
     case beepOnToggle = "ZendyKey.beepOnToggle"
     case beepVolume = "ZendyKey.beepVolume"
 
@@ -181,7 +186,6 @@ class ZKSharedSettings {
             ZKSharedSettingsKey.toggleHotkeyCode.rawValue,
             ZKSharedSettingsKey.toggleHotkeyModifiers.rawValue,
             ZKSharedSettingsKey.toggleHotkeyIsModifierOnly.rawValue,
-            ZKSharedSettingsKey.undoTypingEnabled.rawValue,
             ZKSharedSettingsKey.beepOnToggle.rawValue,
             ZKSharedSettingsKey.inputMethod.rawValue,
             ZKSharedSettingsKey.codeTable.rawValue,
@@ -239,11 +243,6 @@ class ZKSharedSettings {
     var toggleHotkeyIsModifierOnly: Bool {
         get { defaults.bool(forKey: ZKSharedSettingsKey.toggleHotkeyIsModifierOnly.rawValue) }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.toggleHotkeyIsModifierOnly.rawValue) }
-    }
-
-    var undoTypingEnabled: Bool {
-        get { defaults.bool(forKey: ZKSharedSettingsKey.undoTypingEnabled.rawValue) }
-        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.undoTypingEnabled.rawValue) }
     }
 
     var beepOnToggle: Bool {
@@ -562,6 +561,38 @@ class ZKSharedSettings {
         get { defaults.bool(forKey: ZKSharedSettingsKey.switchToZendyKeyHotkeyIsModifierOnly.rawValue) }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.switchToZendyKeyHotkeyIsModifierOnly.rawValue) }
     }
+    
+    // Input Method Hotkey
+    var inputMethodHotkeyCode: UInt16 {
+        get { UInt16(defaults.integer(forKey: ZKSharedSettingsKey.inputMethodHotkeyCode.rawValue)) }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.inputMethodHotkeyCode.rawValue) }
+    }
+
+    var inputMethodHotkeyModifiers: UInt {
+        get { UInt(defaults.integer(forKey: ZKSharedSettingsKey.inputMethodHotkeyModifiers.rawValue)) }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.inputMethodHotkeyModifiers.rawValue) }
+    }
+
+    var inputMethodHotkeyIsModifierOnly: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.inputMethodHotkeyIsModifierOnly.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.inputMethodHotkeyIsModifierOnly.rawValue) }
+    }
+    
+    // Code Table Hotkey
+    var codeTableHotkeyCode: UInt16 {
+        get { UInt16(defaults.integer(forKey: ZKSharedSettingsKey.codeTableHotkeyCode.rawValue)) }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.codeTableHotkeyCode.rawValue) }
+    }
+
+    var codeTableHotkeyModifiers: UInt {
+        get { UInt(defaults.integer(forKey: ZKSharedSettingsKey.codeTableHotkeyModifiers.rawValue)) }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.codeTableHotkeyModifiers.rawValue) }
+    }
+
+    var codeTableHotkeyIsModifierOnly: Bool {
+        get { defaults.bool(forKey: ZKSharedSettingsKey.codeTableHotkeyIsModifierOnly.rawValue) }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.codeTableHotkeyIsModifierOnly.rawValue) }
+    }
 
     // MARK: - UI Settings
 
@@ -735,9 +766,30 @@ class ZKSharedSettings {
                 isModifierOnly: toggleHotkeyIsModifierOnly
             )
         }
-        prefs.undoTypingEnabled = undoTypingEnabled
         prefs.beepOnToggle = beepOnToggle
         prefs.beepVolume = beepVolume
+        
+        // Input Method Hotkey (optional)
+        let inputMethodHkCode = inputMethodHotkeyCode
+        let inputMethodHkModifiers = inputMethodHotkeyModifiers
+        if inputMethodHkCode != 0 || inputMethodHkModifiers != 0 {
+            prefs.inputMethodHotkey = Hotkey(
+                keyCode: inputMethodHkCode,
+                modifiers: ModifierFlags(rawValue: inputMethodHkModifiers),
+                isModifierOnly: inputMethodHotkeyIsModifierOnly
+            )
+        }
+        
+        // Code Table Hotkey (optional)
+        let codeTableHkCode = codeTableHotkeyCode
+        let codeTableHkModifiers = codeTableHotkeyModifiers
+        if codeTableHkCode != 0 || codeTableHkModifiers != 0 {
+            prefs.codeTableHotkey = Hotkey(
+                keyCode: codeTableHkCode,
+                modifiers: ModifierFlags(rawValue: codeTableHkModifiers),
+                isModifierOnly: codeTableHotkeyIsModifierOnly
+            )
+        }
 
         // Input settings
         if let method = InputMethod(rawValue: inputMethod) {
@@ -847,9 +899,30 @@ class ZKSharedSettings {
         toggleHotkeyCode = prefs.toggleHotkey.keyCode
         toggleHotkeyModifiers = prefs.toggleHotkey.modifiers.rawValue
         toggleHotkeyIsModifierOnly = prefs.toggleHotkey.isModifierOnly
-        undoTypingEnabled = prefs.undoTypingEnabled
         beepOnToggle = prefs.beepOnToggle
         beepVolume = prefs.beepVolume
+        
+        // Input Method Hotkey (optional)
+        if let inputMethodHk = prefs.inputMethodHotkey {
+            inputMethodHotkeyCode = inputMethodHk.keyCode
+            inputMethodHotkeyModifiers = inputMethodHk.modifiers.rawValue
+            inputMethodHotkeyIsModifierOnly = inputMethodHk.isModifierOnly
+        } else {
+            inputMethodHotkeyCode = 0
+            inputMethodHotkeyModifiers = 0
+            inputMethodHotkeyIsModifierOnly = false
+        }
+        
+        // Code Table Hotkey (optional)
+        if let codeTableHk = prefs.codeTableHotkey {
+            codeTableHotkeyCode = codeTableHk.keyCode
+            codeTableHotkeyModifiers = codeTableHk.modifiers.rawValue
+            codeTableHotkeyIsModifierOnly = codeTableHk.isModifierOnly
+        } else {
+            codeTableHotkeyCode = 0
+            codeTableHotkeyModifiers = 0
+            codeTableHotkeyIsModifierOnly = false
+        }
 
         // Input settings
         inputMethod = prefs.inputMethod.rawValue
@@ -955,4 +1028,16 @@ extension Notification.Name {
     
     /// Posted when settings change (distributed, cross-app)
     static let ZendyKeySettingsDidChange = Notification.Name("ZendyKey.settingsDidChange")
+    
+    /// Posted from Settings to request toggling Vietnamese mode
+    static let toggleVietnameseFromSettings = Notification.Name("ZendyKey.toggleVietnameseFromSettings")
+    
+    /// Posted when Vietnamese mode changes (for Settings to update UI)
+    static let vietnameseModeDidChange = Notification.Name("ZendyKey.vietnameseModeDidChange")
+    
+    /// Posted from Settings to request current Vietnamese state
+    static let requestVietnameseState = Notification.Name("ZendyKey.requestVietnameseState")
+    
+    /// Posted when hotkey settings change (for menu bar to rebuild)
+    static let hotkeySettingsDidChange = Notification.Name("ZendyKey.hotkeySettingsDidChange")
 }

@@ -80,7 +80,6 @@ struct Preferences: Codable {
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
     var inputMethodHotkey: Hotkey? = nil  // Optional: Hotkey to switch input method
     var codeTableHotkey: Hotkey? = nil    // Optional: Hotkey to switch code table
-    var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
     var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
     var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
@@ -217,6 +216,15 @@ struct Hotkey: Codable, Equatable {
             0x31: "Space", 0x24: "Return", 0x35: "Esc"
         ]
         return mapping[keyCode]
+    }
+    
+    /// Returns the key character for use with NSMenuItem.keyEquivalent (lowercase)
+    var keyEquivalentString: String {
+        if isModifierOnly { return "" }
+        if let char = keyCodeToCharacter(keyCode) {
+            return char.lowercased()
+        }
+        return ""
     }
 }
 

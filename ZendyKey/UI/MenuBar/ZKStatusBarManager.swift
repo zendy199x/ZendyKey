@@ -109,6 +109,15 @@ class ZKStatusBarManager: ObservableObject {
             }
             .store(in: &cancellables)
         
+        // Observe hotkey settings changes from Settings panel
+        NotificationCenter.default.publisher(for: .hotkeySettingsDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.log("🔑 Hotkey settings changed - rebuilding menu")
+                self?.rebuildMenu()
+            }
+            .store(in: &cancellables)
+        
         log("✅ Status bar setup complete")
     }
     
@@ -131,10 +140,10 @@ class ZKStatusBarManager: ObservableObject {
         let toggleTitle: String
         if isModifierOnly {
             // Show hotkey in title for modifier-only hotkeys (e.g., "Bật Tiếng Việt (⌃⇧)")
-            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Tiếng Việt" : "Bật Tiếng Việt"
+            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
             toggleTitle = "\(baseTitle) (\(viewModel.hotkeyDisplay))"
         } else {
-            toggleTitle = viewModel.isVietnameseEnabled ? "Tắt Tiếng Việt" : "Bật Tiếng Việt"
+            toggleTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
         }
         
         let toggleItem = menu.addItem(
@@ -166,13 +175,12 @@ class ZKStatusBarManager: ObservableObject {
             item.state = (method == viewModel.currentInputMethod) ? .on : .off
         }
         
-        // Build input method title with hotkey if set
-        let inputMethodTitle: String
+        // Build input method title with tab-aligned hotkey
+        var inputMethodTitle = "Kiểu gõ"
         if let inputMethodHotkey = prefs.inputMethodHotkey {
-            inputMethodTitle = "Kiểu gõ (\(inputMethodHotkey.displayString))"
+            inputMethodTitle = "Kiểu gõ\t\(inputMethodHotkey.displayString)"
             log("📋 Input method hotkey found: \(inputMethodHotkey.displayString)")
         } else {
-            inputMethodTitle = "Kiểu gõ"
             log("📋 No input method hotkey set")
         }
         
@@ -198,13 +206,12 @@ class ZKStatusBarManager: ObservableObject {
             item.state = (table == viewModel.currentCodeTable) ? .on : .off
         }
         
-        // Build code table title with hotkey if set
-        let codeTableTitle: String
+        // Build code table title with tab-aligned hotkey
+        var codeTableTitle = "Bảng mã"
         if let codeTableHotkey = prefs.codeTableHotkey {
-            codeTableTitle = "Bảng mã (\(codeTableHotkey.displayString))"
+            codeTableTitle = "Bảng mã\t\(codeTableHotkey.displayString)"
             log("📋 Code table hotkey found: \(codeTableHotkey.displayString)")
         } else {
-            codeTableTitle = "Bảng mã"
             log("📋 No code table hotkey set")
         }
         
@@ -262,18 +269,6 @@ class ZKStatusBarManager: ObservableObject {
         
         menu.addItem(.separator())
         
-        // Version info (disabled, not clickable)
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        let versionItem = menu.addItem(
-            withTitle: "ZendyKey v\(version)",
-            action: nil,
-            keyEquivalent: ""
-        )
-        versionItem.isEnabled = false
-        versionItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
-        
-        menu.addItem(.separator())
-        
         // Quit
         let quitItem = menu.addItem(
             withTitle: "Thoát ZendyKey",
@@ -304,7 +299,7 @@ class ZKStatusBarManager: ObservableObject {
             let prefs = ZKSharedSettings.shared.loadPreferences()
             let isModifierOnly = prefs.toggleHotkey.isModifierOnly
             
-            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Tiếng Việt" : "Bật Tiếng Việt"
+            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
             if isModifierOnly {
                 toggleItem.title = "\(baseTitle) (\(viewModel.hotkeyDisplay))"
             } else {
@@ -351,6 +346,9 @@ class ZKStatusBarManager: ObservableObject {
         
         viewModel.selectInputMethod(method)
         
+        // Show on-screen indicator
+        ZKOnScreenIndicatorController.shared.show(inputMethod: method)
+        
         // Update menu item states immediately (synchronously)
         if let submenu = sender.menu {
             for item in submenu.items {
@@ -366,6 +364,9 @@ class ZKStatusBarManager: ObservableObject {
         log("📋 selectCodeTable: tag=\(sender.tag), title=\(sender.title)")
         
         viewModel.selectCodeTable(table)
+        
+        // Show on-screen indicator
+        ZKOnScreenIndicatorController.shared.show(codeTable: table)
         
         // Update menu item states immediately (synchronously)
         if let submenu = sender.menu {
@@ -404,6 +405,15 @@ class ZKStatusBarManager: ObservableObject {
         return flags
     }
     
+    private func convertToNSEventModifiers(_ modifiers: ModifierFlags) -> NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if modifiers.contains(.command) { flags.insert(.command) }
+        if modifiers.contains(.control) { flags.insert(.control) }
+        if modifiers.contains(.option) { flags.insert(.option) }
+        if modifiers.contains(.shift) { flags.insert(.shift) }
+        return flags
+    }
+    
     private func updateStatusIcon() {
         guard let button = statusItem?.button else { return }
         
@@ -430,24 +440,24 @@ class ZKStatusBarManager: ObservableObject {
                 let logoSize = NSSize(width: 16, height: 16)
                 let logoRect = NSRect(
                     x: (size.width - logoSize.width) / 2 - 1,
-                    y: (size.height - logoSize.height) / 2 + 2,
+                    y: (size.height - logoSize.height) / 2,  // Centered vertically
                     width: logoSize.width,
                     height: logoSize.height
                 )
                 logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1.0)
             }
             
-            // Draw emoji flag at bottom-right corner
+            // Draw emoji flag at top-right corner
             let flagEmoji = isVietnamese ? "🇻🇳" : "🇬🇧"
-            let flagFont = NSFont.systemFont(ofSize: 8)
+            let flagFont = NSFont.systemFont(ofSize: 10)
             let flagAttributes: [NSAttributedString.Key: Any] = [
                 .font: flagFont
             ]
             
             let flagSize = (flagEmoji as NSString).size(withAttributes: flagAttributes)
             let flagRect = NSRect(
-                x: size.width - flagSize.width - 1,
-                y: -1,
+                x: size.width - flagSize.width + 2,
+                y: size.height - flagSize.height + 2,
                 width: flagSize.width,
                 height: flagSize.height
             )
@@ -526,6 +536,7 @@ class ZKStatusBarManager: ObservableObject {
                 }
             ),
             inputMethodName: viewModel.currentInputMethod.displayName,
+            codeTableName: viewModel.currentCodeTable.displayName,
             hotkeyDisplay: viewModel.hotkeyDisplay
         )
         

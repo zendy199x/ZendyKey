@@ -111,6 +111,18 @@ struct ZKHotkeyRecorderView: View {
                 isModifierOnly: false
             )
             
+            // Check for reserved system hotkeys
+            if isReservedHotkey(newHotkey) {
+                // Show warning and reject
+                displayText = "⚠️ Phím này đã được dùng bởi hệ thống"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    if isRecording {
+                        displayText = "Nhấn phím tắt..."
+                    }
+                }
+                return nil
+            }
+            
             hotkey = newHotkey
             stopRecording()
             updateDisplay()
@@ -212,6 +224,27 @@ struct ZKHotkeyRecorderView: View {
         } else {
             displayText = ""
         }
+    }
+    
+    /// Check if a hotkey is reserved for system use
+    private func isReservedHotkey(_ hotkey: Hotkey) -> Bool {
+        // Reserved hotkeys that cannot be used:
+        // ⌘, (Bảng điều khiển) - keyCode 43 is ","
+        // ⌘Q (Thoát ZendyKey) - keyCode 12 is "Q"
+        
+        let reservedHotkeys: [(keyCode: UInt16, modifiers: ModifierFlags)] = [
+            (43, [.command]),  // ⌘, - Preferences
+            (12, [.command]),  // ⌘Q - Quit
+        ]
+        
+        for reserved in reservedHotkeys {
+            if hotkey.keyCode == reserved.keyCode &&
+               hotkey.modifiers == reserved.modifiers {
+                return true
+            }
+        }
+        
+        return false
     }
 }
 

@@ -186,7 +186,7 @@ struct ZKPauseKeyConfigSection: View {
     }
 
     var body: some View {
-        SettingsGroup(title: "Tạm dừng gõ tiếng Việt") {
+        ZKSection( "Tạm dừng gõ tiếng Việt") {
             VStack(alignment: .leading, spacing: 16) {
                 // Enable toggle with icon
                 HStack(spacing: 14) {
@@ -264,7 +264,7 @@ struct ZKRestoreKeyConfigSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
 
     var body: some View {
-        SettingsGroup(title: "Khôi phục nguyên gốc") {
+        ZKSection( "Khôi phục nguyên gốc") {
             VStack(alignment: .leading, spacing: 16) {
                 // Enable toggle
                 HStack(spacing: 14) {

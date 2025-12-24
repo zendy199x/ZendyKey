@@ -18,7 +18,7 @@ struct ExcludedAppsSettingsSection: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsGroup(title: "Loại trừ ứng dụng") {
+                ZKSection( "Loại trừ ứng dụng") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Các ứng dụng trong danh sách này sẽ không hỗ trợ gõ tiếng Việt.")
                             .font(ZKTypography.caption)
@@ -67,7 +67,7 @@ struct ExcludedAppsSettingsSection: View {
                 }
                 
                 // Excluded apps list
-                SettingsGroup(title: "Danh sách ứng dụng loại trừ (\(viewModel.preferences.excludedApps.count))") {
+                ZKSection( "Danh sách ứng dụng loại trừ (\(viewModel.preferences.excludedApps.count))") {
                     if viewModel.preferences.excludedApps.isEmpty {
                         VStack(spacing: 12) {
                             GradientIcon(systemName: "app.dashed", size: 32)

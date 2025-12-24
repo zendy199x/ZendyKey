@@ -434,6 +434,10 @@ struct ZKTypography {
     static let callout = Font.system(size: 13, weight: .regular, design: .default)
     static let caption = Font.system(size: 12, weight: .regular, design: .default)
     static let caption2 = Font.system(size: 11, weight: .regular, design: .default)
+    
+    // Icon text (for VI, EN, etc.)
+    static let iconText = Font.system(size: 14, weight: .bold, design: .rounded)
+    static let iconTextSmall = Font.system(size: 12, weight: .bold, design: .rounded)
 }
 
 // MARK: - Glass Card View
@@ -632,6 +636,8 @@ extension View {
 // MARK: - Animated Toggle Style
 
 struct ZKToggleStyle: ToggleStyle {
+    @State private var isPressed = false
+    
     func makeBody(configuration: Configuration) -> some View {
         HStack {
             configuration.label
@@ -639,25 +645,72 @@ struct ZKToggleStyle: ToggleStyle {
             
             Spacer()
             
-            ZStack {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                // Track (background)
                 Capsule()
-                    .fill(configuration.isOn ? ZKColors.accentGradient : LinearGradient(colors: [ZKColors.glassBackground], startPoint: .leading, endPoint: .trailing))
+                    .fill(
+                        configuration.isOn
+                            ? AnyShapeStyle(ZKColors.accentGradient)
+                            : AnyShapeStyle(Color(nsColor: .separatorColor).opacity(0.3))
+                    )
+                    .frame(width: 52, height: 25)
                     .overlay(
                         Capsule()
-                            .stroke(ZKColors.glassBorder, lineWidth: 1)
+                            .stroke(
+                                configuration.isOn
+                                    ? Color.white.opacity(0.15)
+                                    : Color.white.opacity(0.08),
+                                lineWidth: 0.5
+                            )
                     )
-                    .frame(width: 44, height: 26)
+                    // Glow effect when on
+                    .shadow(
+                        color: configuration.isOn ? ZKColors.accent.opacity(0.3) : .clear,
+                        radius: isPressed ? 8 : 4,
+                        x: 0,
+                        y: 0
+                    )
                 
-                Circle()
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                    .frame(width: 22, height: 22)
-                    .offset(x: configuration.isOn ? 9 : -9)
+                // Pill (knob) - elongates when pressed like macOS
+                Capsule()
+                    .fill(.regularMaterial)
+                    .overlay(
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white, Color.white.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(0.15), radius: isPressed ? 4 : 2, x: 0, y: isPressed ? 3 : 1)
+                    .shadow(color: .black.opacity(0.08), radius: 1, x: 0, y: 1)
+                    .frame(width: isPressed ? 28 : 21, height: 21)
+                    .padding(.horizontal, 2)
+                    .scaleEffect(isPressed ? 0.95 : 1.0)
             }
-            .animation(ZKAnimations.spring, value: configuration.isOn)
-            .onTapGesture {
-                configuration.isOn.toggle()
-            }
+            .scaleEffect(isPressed ? 0.97 : 1.0)
+            .animation(.spring(response: 0.35, dampingFraction: 0.6, blendDuration: 0), value: configuration.isOn)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
+                            isPressed = true
+                        }
+                    }
+                    .onEnded { _ in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                            isPressed = false
+                        }
+                        configuration.isOn.toggle()
+                    }
+            )
         }
     }
 }

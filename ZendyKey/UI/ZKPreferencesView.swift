@@ -22,8 +22,8 @@ struct ZKPreferencesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Title
-            Text("Cài đặt ZendyKey")
+            // Title with version
+            Text("ZendyKey v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
                 .font(.title2)
                 .fontWeight(.bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -200,7 +200,7 @@ struct BasicSettingsTab: View {
                 GroupBox("Phím tắt") {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Bật/tắt tiếng Việt:")
+                            Text("Bật/tắt gõ tiếng Việt:")
                             Spacer()
                             ZKHotkeyRecorderView(hotkey: $viewModel.preferences.toggleHotkey)
                                 .frame(width: 150)
@@ -211,7 +211,7 @@ struct BasicSettingsTab: View {
                         Divider()
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Hoàn tác gõ tiếng Việt bằng phím Esc", isOn: $viewModel.preferences.undoTypingEnabled)
+                            Toggle("Hoàn tác gõ tiếng Việt bằng phím Esc", isOn: $viewModel.preferences.restoreOnEscape)
                             
                             Text("Nhấn Esc ngay sau khi gõ để hoàn tác việc bỏ dấu")
                                 .font(.caption)

@@ -287,7 +287,7 @@ enum InputMethod: Int, CaseIterable, Codable {
         switch self {
         case .telex: return "Telex"
         case .vni: return "VNI"
-        case .simpleTelex1: return "Simple Telex"
+        case .simpleTelex1: return "Simple Telex 1"
         case .simpleTelex2: return "Simple Telex 2"
         case .viqr: return "VIQR"
         }
@@ -298,7 +298,7 @@ enum InputMethod: Int, CaseIterable, Codable {
         switch self {
         case .telex: return "aa→â, dd→đ, aw→ă, s/f/r/x/j→dấu"
         case .vni: return "a6→â, d9→đ, a8→ă, 1/2/3/4/5→dấu"
-        case .simpleTelex1: return "Telex đơn giản hóa"
+        case .simpleTelex1: return "Telex đơn giản 1"
         case .simpleTelex2: return "Telex đơn giản 2"
         case .viqr: return "a^→â, a'→á, a`→à, dd→đ"
         }

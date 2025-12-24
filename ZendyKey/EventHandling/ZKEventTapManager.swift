@@ -253,14 +253,16 @@ class ZKEventTapManager {
                     // Pause key pressed - switch to English temporarily
                     pauseKeyState.isHolding = true
                     pauseKeyState.lastKeyCode = keyCode
-                    debugLogCallback?("⏸️ Pause key pressed - temporarily switching to English")
+                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
+                    debugLogCallback?("⏸️ Pause key (\(keyName)) pressed - temporarily switching to English")
                     DispatchQueue.main.async { [weak self] in
                         self?.onPauseKeyDown?()
                     }
                 } else if !isPauseKeyPressed && pauseKeyState.isHolding {
                     // Pause key released - restore previous mode
                     pauseKeyState.isHolding = false
-                    debugLogCallback?("▶️ Pause key released - restoring Vietnamese")
+                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
+                    debugLogCallback?("▶️ Pause key (\(keyName)) released - restoring Vietnamese")
                     DispatchQueue.main.async { [weak self] in
                         self?.onPauseKeyUp?()
                     }

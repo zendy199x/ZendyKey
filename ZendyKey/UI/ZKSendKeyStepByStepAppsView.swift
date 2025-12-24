@@ -19,7 +19,7 @@ struct SendKeyStepByStepAppsSettingsSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Global SendKeyStepByStep toggle
-                SettingsGroup(title: "Gửi từng phím") {
+                ZKSection( "Gửi từng phím") {
                 VStack(alignment: .leading, spacing: 12) {
                         Toggle("Bật gửi từng phím", isOn: $viewModel.preferences.sendKeyStepByStep)
                         
@@ -34,7 +34,7 @@ struct SendKeyStepByStepAppsSettingsSection: View {
                 }
                 
                 // Per-app settings
-                SettingsGroup(title: "Ứng dụng gửi từng phím") {
+                ZKSection( "Ứng dụng gửi từng phím") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Các ứng dụng trong danh sách này sẽ tự động bật chế độ gửi từng phím.")
                             .font(ZKTypography.caption)
@@ -81,7 +81,7 @@ struct SendKeyStepByStepAppsSettingsSection: View {
                 }
                 
                 // Apps list
-                SettingsGroup(title: "Danh sách (\(viewModel.preferences.sendKeyStepByStepApps.count))") {
+                ZKSection( "Danh sách (\(viewModel.preferences.sendKeyStepByStepApps.count))") {
                     if viewModel.preferences.sendKeyStepByStepApps.isEmpty {
                         HStack {
                             Spacer()
