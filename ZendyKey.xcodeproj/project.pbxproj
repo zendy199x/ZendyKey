@@ -64,7 +64,7 @@
 		A100002F /* ZKAppBehaviorDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200002F /* ZKAppBehaviorDetector.swift */; };
 		A1000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000030 /* Assets.xcassets */; };
 		A1000031 /* ZKDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000031 /* ZKDesignSystem.swift */; };
-		A1000032 /* ZKStatusBarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000032 /* ZKStatusBarPopoverView.swift */; };
+		A1000034 /* ZKMenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000034 /* ZKMenuBarPopover.swift */; };
 		A1000033 /* ZKPerAppCodeTableManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000033 /* ZKPerAppCodeTableManager.swift */; };
 		C2A8B17D6D14167F9597E9C7 /* ZKInputMethodStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A836C2F5BF8DCED14171C /* ZKInputMethodStep.swift */; };
 		C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */; };
@@ -137,7 +137,7 @@
 		A200002F /* ZKAppBehaviorDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKAppBehaviorDetector.swift; sourceTree = "<group>"; };
 		A2000030 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000031 /* ZKDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKDesignSystem.swift; sourceTree = "<group>"; };
-		A2000032 /* ZKStatusBarPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKStatusBarPopoverView.swift; sourceTree = "<group>"; };
+		A2000034 /* ZKMenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKMenuBarPopover.swift; sourceTree = "<group>"; };
 		A2000033 /* ZKPerAppCodeTableManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKPerAppCodeTableManager.swift; sourceTree = "<group>"; };
 		A3000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A3000002 /* ZendyKey.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZendyKey.entitlements; sourceTree = "<group>"; };
@@ -360,7 +360,7 @@
 			isa = PBXGroup;
 			children = (
 				A200000D /* ZKStatusBarManager.swift */,
-				A2000032 /* ZKStatusBarPopoverView.swift */,
+				A2000034 /* ZKMenuBarPopover.swift */,
 				A2000020 /* ZKStatusBarViewModel.swift */,
 				18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
 			);
@@ -491,7 +491,7 @@
 				A100001B /* ZKKeyCodeToCharacter.swift in Sources */,
 				A1000026 /* ZKWindowTitleRulesView.swift in Sources */,
 				A1000031 /* ZKDesignSystem.swift in Sources */,
-				A1000032 /* ZKStatusBarPopoverView.swift in Sources */,
+				A1000034 /* ZKMenuBarPopover.swift in Sources */,
 				68CA5F55F8F5F60438FBB17C /* ZKOnScreenIndicator.swift in Sources */,
 				0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */,
 				40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */,

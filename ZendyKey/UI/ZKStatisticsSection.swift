@@ -102,7 +102,7 @@ struct ZKStatisticsSection: View {
     
     private var typingSpeedCard: some View {
         AdaptiveGlassCard {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     GradientIcon(systemName: "speedometer", size: 16)
                     Text("Tốc độ gõ phím")
@@ -110,6 +110,7 @@ struct ZKStatisticsSection: View {
                         .foregroundColor(ZKColors.textPrimary)
                 }
                 
+                // Real-time speed (current session)
                 HStack(spacing: 32) {
                     // WPM
                     VStack(alignment: .leading, spacing: 4) {
@@ -125,7 +126,7 @@ struct ZKStatisticsSection: View {
                                 .foregroundColor(ZKColors.textSecondary)
                         }
                         
-                        Text("WPM")
+                        Text("WPM (hiện tại)")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textTertiary)
                     }
@@ -147,23 +148,114 @@ struct ZKStatisticsSection: View {
                                 .foregroundColor(ZKColors.textSecondary)
                         }
                         
-                        Text("CPM")
+                        Text("CPM (hiện tại)")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textTertiary)
                     }
                     
                     Spacer()
-                    
-                    // Total typing time
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("\(stats.totalTypingMinutes)")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(ZKColors.textPrimary)
+                }
+                
+                // Divider
+                Rectangle()
+                    .fill(ZKColors.glassBorder)
+                    .frame(height: 1)
+                
+                // Average speeds - Today and All-time (evenly split)
+                HStack(spacing: 16) {
+                    // Today's average
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 12))
+                                .foregroundColor(ZKColors.textSecondary)
+                            Text("Hôm nay")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(ZKColors.textSecondary)
+                        }
                         
-                        Text("phút đã gõ")
-                            .font(ZKTypography.caption)
-                            .foregroundColor(ZKColors.textSecondary)
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(Int(stats.todayAverageWPM))")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundStyle(ZKColors.successGradient)
+                                Text("WPM")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(Int(stats.todayAverageCPM))")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundStyle(ZKColors.accentGradient)
+                                Text("CPM")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(stats.todayTypingMinutes)")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundColor(ZKColors.textPrimary)
+                                Text("phút")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(ZKColors.glassBorder, lineWidth: 1)
+                    )
+                    
+                    // All-time average
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 12))
+                                .foregroundColor(ZKColors.textSecondary)
+                            Text("Tất cả")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(ZKColors.textSecondary)
+                        }
+                        
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(Int(stats.allTimeAverageWPM))")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundStyle(ZKColors.successGradient)
+                                Text("WPM")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(Int(stats.allTimeAverageCPM))")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundStyle(ZKColors.accentGradient)
+                                Text("CPM")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(stats.totalTypingMinutes)")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundColor(ZKColors.textPrimary)
+                                Text("phút")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(ZKColors.textTertiary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(ZKColors.glassBorder, lineWidth: 1)
+                    )
                 }
             }
         }

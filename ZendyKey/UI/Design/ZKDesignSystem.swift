@@ -653,7 +653,7 @@ struct ZKToggleStyle: ToggleStyle {
                             ? AnyShapeStyle(ZKColors.accentGradient)
                             : AnyShapeStyle(Color(nsColor: .separatorColor).opacity(0.3))
                     )
-                    .frame(width: 52, height: 25)
+                    .frame(width: 50, height: 25)
                     .overlay(
                         Capsule()
                             .stroke(

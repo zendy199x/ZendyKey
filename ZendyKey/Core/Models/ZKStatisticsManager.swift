@@ -21,6 +21,12 @@ struct ZKStatisticsData: Codable {
     var todayTypingSeconds: Int = 0
     var lastResetDate: String = ""
     
+    // Today's EMA (Exponential Moving Average) typing speed
+    // Updated after each typing session ends for smooth averaging
+    var todayEMAWPM: Double = 0
+    var todayEMACPM: Double = 0
+    var todaySessionCount: Int = 0  // Number of sessions for weighted EMA
+    
     // All-time statistics
     var totalKeystrokes: Int = 0
     var totalVietnameseChars: Int = 0
@@ -28,6 +34,11 @@ struct ZKStatisticsData: Codable {
     var totalAutoRestores: Int = 0
     var totalTypingSeconds: Int = 0
     var startDate: Date = Date()
+    
+    // All-time EMA typing speed
+    var allTimeEMAWPM: Double = 0
+    var allTimeEMACPM: Double = 0
+    var allTimeSessionCount: Int = 0
     
     // Shortcut usage tracking
     var shortcutUsage: [String: Int] = [:]
@@ -58,6 +69,14 @@ final class ZKStatisticsManager: ObservableObject {
     // Typing speed (real-time) - calculated from active session
     @Published private(set) var wordsPerMinute: Double = 0
     @Published private(set) var charsPerMinute: Double = 0
+    
+    // Today's average typing speed (EMA-based)
+    @Published private(set) var todayAverageWPM: Double = 0
+    @Published private(set) var todayAverageCPM: Double = 0
+    
+    // All-time average typing speed (EMA-based)
+    @Published private(set) var allTimeAverageWPM: Double = 0
+    @Published private(set) var allTimeAverageCPM: Double = 0
     
     // Time tracking
     @Published private(set) var totalTypingMinutes: Int = 0
@@ -173,6 +192,7 @@ final class ZKStatisticsManager: ObservableObject {
                 self.totalKeystrokes = self.data.totalKeystrokes
                 self.totalTypingMinutes = self.data.totalTypingSeconds / 60
                 self.todayTypingMinutes = self.data.todayTypingSeconds / 60
+                self.calculateAverageSpeeds()
             }
         }
     }
@@ -350,7 +370,33 @@ final class ZKStatisticsManager: ObservableObject {
     }
     
     /// End current session and reset speed
+    /// Also updates EMA (Exponential Moving Average) for WPM/CPM
     private func endCurrentSession() {
+        // Calculate this session's speed before resetting
+        if let sessionStart = currentSessionStart,
+           currentSessionKeystrokeCount >= 5 {  // Minimum 5 keystrokes for meaningful session
+            
+            let sessionDuration = Date().timeIntervalSince(sessionStart)
+            let durationMinutes = max(sessionDuration / 60.0, 0.1) // Minimum 6 seconds
+            
+            // Calculate this session's speed
+            let sessionWPM = Double(currentSessionKeystrokeCount) / 5.0 / durationMinutes
+            let sessionCPM = Double(currentSessionCharCount) / durationMinutes
+            
+            // Clamp to realistic values
+            let clampedWPM = min(max(sessionWPM, 0), 300)
+            let clampedCPM = min(max(sessionCPM, 0), 600)
+            
+            // Update EMA with adaptive alpha
+            // For first few sessions, use simple average (alpha = 1/n)
+            // After 5 sessions, use fixed alpha = 0.2 for EMA
+            updateEMA(wpm: clampedWPM, cpm: clampedCPM)
+            
+            // Schedule save to persist EMA values
+            scheduleSave()
+        }
+        
+        // Reset session state
         currentSessionStart = nil
         currentSessionKeystrokeCount = 0
         currentSessionCharCount = 0
@@ -359,6 +405,51 @@ final class ZKStatisticsManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.wordsPerMinute = 0
             self?.charsPerMinute = 0
+        }
+    }
+    
+    /// Update EMA (Exponential Moving Average) for WPM and CPM
+    /// Uses adaptive alpha: simple average for first 5 sessions, then fixed EMA
+    private func updateEMA(wpm: Double, cpm: Double) {
+        // Today's EMA
+        data.todaySessionCount += 1
+        if data.todaySessionCount == 1 {
+            // First session today - just set the value
+            data.todayEMAWPM = wpm
+            data.todayEMACPM = cpm
+        } else if data.todaySessionCount <= 5 {
+            // First few sessions - use simple cumulative average
+            let n = Double(data.todaySessionCount)
+            data.todayEMAWPM = data.todayEMAWPM * (n - 1) / n + wpm / n
+            data.todayEMACPM = data.todayEMACPM * (n - 1) / n + cpm / n
+        } else {
+            // After 5 sessions - use EMA with alpha = 0.2
+            let alpha: Double = 0.2
+            data.todayEMAWPM = alpha * wpm + (1 - alpha) * data.todayEMAWPM
+            data.todayEMACPM = alpha * cpm + (1 - alpha) * data.todayEMACPM
+        }
+        
+        // All-time EMA
+        data.allTimeSessionCount += 1
+        if data.allTimeSessionCount == 1 {
+            data.allTimeEMAWPM = wpm
+            data.allTimeEMACPM = cpm
+        } else if data.allTimeSessionCount <= 10 {
+            let n = Double(data.allTimeSessionCount)
+            data.allTimeEMAWPM = data.allTimeEMAWPM * (n - 1) / n + wpm / n
+            data.allTimeEMACPM = data.allTimeEMACPM * (n - 1) / n + cpm / n
+        } else {
+            let alpha: Double = 0.1  // Slower adaptation for all-time
+            data.allTimeEMAWPM = alpha * wpm + (1 - alpha) * data.allTimeEMAWPM
+            data.allTimeEMACPM = alpha * cpm + (1 - alpha) * data.allTimeEMACPM
+        }
+        
+        // Update published values
+        DispatchQueue.main.async { [weak self] in
+            self?.todayAverageWPM = self?.data.todayEMAWPM ?? 0
+            self?.todayAverageCPM = self?.data.todayEMACPM ?? 0
+            self?.allTimeAverageWPM = self?.data.allTimeEMAWPM ?? 0
+            self?.allTimeAverageCPM = self?.data.allTimeEMACPM ?? 0
         }
     }
     
@@ -428,6 +519,12 @@ final class ZKStatisticsManager: ObservableObject {
             data.todayShortcuts = 0
             data.todayAutoRestores = 0
             data.todayTypingSeconds = 0
+            
+            // Reset today's EMA values
+            data.todayEMAWPM = 0
+            data.todayEMACPM = 0
+            data.todaySessionCount = 0
+            
             data.lastResetDate = today
             saveImmediately()
         }
@@ -462,7 +559,45 @@ final class ZKStatisticsManager: ObservableObject {
             self.todayTypingMinutes = self.data.todayTypingSeconds / 60
             self.startDate = self.data.startDate
             
+            self.calculateAverageSpeeds()
             self.updateTopShortcuts()
+        }
+    }
+    
+    /// Calculate today's and all-time average WPM/CPM from EMA values
+    private func calculateAverageSpeeds() {
+        // Today's average - use EMA values if available
+        if data.todaySessionCount > 0 {
+            todayAverageWPM = data.todayEMAWPM
+            todayAverageCPM = data.todayEMACPM
+        } else if data.todayTypingSeconds > 0 {
+            // Fallback: calculate from totals if no sessions completed yet
+            let typingMinutes = max(Double(data.todayTypingSeconds) / 60.0, 1.0)
+            let wpm = Double(data.todayKeystrokes) / 5.0 / typingMinutes
+            let cpm = Double(data.todayVietnameseChars) / typingMinutes
+            
+            todayAverageWPM = min(wpm, 300)
+            todayAverageCPM = min(cpm, 600)
+        } else {
+            todayAverageWPM = 0
+            todayAverageCPM = 0
+        }
+        
+        // All-time average - use EMA values if available
+        if data.allTimeSessionCount > 0 {
+            allTimeAverageWPM = data.allTimeEMAWPM
+            allTimeAverageCPM = data.allTimeEMACPM
+        } else if data.totalTypingSeconds > 0 {
+            // Fallback: calculate from totals
+            let typingMinutes = max(Double(data.totalTypingSeconds) / 60.0, 1.0)
+            let wpm = Double(data.totalKeystrokes) / 5.0 / typingMinutes
+            let cpm = Double(data.totalVietnameseChars) / typingMinutes
+            
+            allTimeAverageWPM = min(wpm, 300)
+            allTimeAverageCPM = min(cpm, 600)
+        } else {
+            allTimeAverageWPM = 0
+            allTimeAverageCPM = 0
         }
     }
     

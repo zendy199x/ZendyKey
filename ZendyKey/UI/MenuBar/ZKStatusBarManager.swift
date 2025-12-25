@@ -2,7 +2,7 @@
 //  ZKStatusBarManager.swift
 //  ZendyKey
 //
-//  Manager for SwiftUI Status Bar
+//  Manager for Status Bar with Modern SwiftUI Popover
 //
 
 import SwiftUI
@@ -15,6 +15,16 @@ class ZKStatusBarManager: ObservableObject {
     private var menuBarIconStyle: MenuBarIconStyle = .x
     weak var debugWindowController: ZKDebugWindowController?
     var onCheckForUpdates: (() -> Void)?
+    private var cancellables = Set<AnyCancellable>()
+    
+    // Modern popover menu controller
+    private lazy var modernMenuPopover: ZKMenuBarPopoverController = {
+        let controller = ZKMenuBarPopoverController(viewModel: viewModel)
+        controller.onCheckForUpdates = { [weak self] in
+            self?.onCheckForUpdates?()
+        }
+        return controller
+    }()
     
     init(keyboardHandler: ZKKeyboardEventHandler?, eventTapManager: ZKEventTapManager?) {
         self.viewModel = ZKStatusBarViewModel(
@@ -28,6 +38,8 @@ class ZKStatusBarManager: ObservableObject {
     private func log(_ message: String) {
         debugWindowController?.logEvent(message)
     }
+    
+    // MARK: - Setup
     
     func setupStatusBar() {
         // Connect viewModel's debug callback to our debugWindowController
@@ -46,57 +58,39 @@ class ZKStatusBarManager: ObservableObject {
         // Set initial icon
         updateStatusIcon()
         
-        // Create traditional NSMenu instead of popover
-        let menu = createMenu()
-        statusItem?.menu = menu
+        // Use modern SwiftUI popover
+        button.action = #selector(statusBarButtonClicked(_:))
+        button.target = self
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         
-        // Observe changes to update icon and menu
+        // Setup observers
+        setupObservers()
+        
+        log("✅ Status bar setup complete with modern popover")
+    }
+    
+    private func setupObservers() {
+        // Update icon when Vietnamese mode changes
         viewModel.$isVietnameseEnabled
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateStatusIcon()
-                self?.updateMenu()
             }
             .store(in: &cancellables)
         
+        // Log input method changes
         viewModel.$currentInputMethod
             .receive(on: DispatchQueue.main)
             .sink { [weak self] method in
                 self?.log("📋 currentInputMethod changed to \(method.displayName)")
-                self?.updateMenu()
             }
             .store(in: &cancellables)
         
+        // Log code table changes
         viewModel.$currentCodeTable
             .receive(on: DispatchQueue.main)
             .sink { [weak self] table in
                 self?.log("📋 currentCodeTable changed to \(table.displayName)")
-                self?.updateMenu()
-            }
-            .store(in: &cancellables)
-        
-        // Observe hotkey changes to rebuild menu
-        viewModel.$hotkeyKeyEquivalent
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.log("🔑 Hotkey changed, rebuilding menu")
-                self?.rebuildMenu()
-            }
-            .store(in: &cancellables)
-        
-        viewModel.$hotkeyModifiers
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.log("🔑 Hotkey modifiers changed, rebuilding menu")
-                self?.rebuildMenu()
-            }
-            .store(in: &cancellables)
-        
-        // Observe update status changes
-        viewModel.$updateStatus
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateUpdateMenuItem()
             }
             .store(in: &cancellables)
         
@@ -108,311 +102,19 @@ class ZKStatusBarManager: ObservableObject {
                 self?.updateStatusIcon()
             }
             .store(in: &cancellables)
-        
-        // Observe hotkey settings changes from Settings panel
-        NotificationCenter.default.publisher(for: .hotkeySettingsDidChange)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.log("🔑 Hotkey settings changed - rebuilding menu")
-                self?.rebuildMenu()
-            }
-            .store(in: &cancellables)
-        
-        log("✅ Status bar setup complete")
     }
     
-    private func createMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        
-        // Header with logo, app info, and toggle switch
-        let headerItem = NSMenuItem()
-        headerItem.view = createHeaderView()
-        headerItem.tag = 0
-        menu.addItem(headerItem)
-        menu.addItem(.separator())
-        
-        // Toggle Vietnamese
-        // For modifier-only hotkeys, show the hotkey in the title instead of using keyEquivalent
-        let prefs = ZKSharedSettings.shared.loadPreferences()
-        let isModifierOnly = prefs.toggleHotkey.isModifierOnly
-        
-        let toggleTitle: String
-        if isModifierOnly {
-            // Show hotkey in title for modifier-only hotkeys (e.g., "Bật Tiếng Việt (⌃⇧)")
-            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
-            toggleTitle = "\(baseTitle) (\(viewModel.hotkeyDisplay))"
+    // MARK: - Modern Popover
+    
+    @objc private func statusBarButtonClicked(_ sender: NSStatusBarButton) {
+        if modernMenuPopover.isShown {
+            modernMenuPopover.dismissPopover()
         } else {
-            toggleTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
-        }
-        
-        let toggleItem = menu.addItem(
-            withTitle: toggleTitle,
-            action: #selector(toggleVietnamese),
-            keyEquivalent: isModifierOnly ? "" : String(viewModel.hotkeyKeyEquivalent.character)
-        )
-        toggleItem.target = self
-        if !isModifierOnly {
-            toggleItem.keyEquivalentModifierMask = convertToNSEventModifiers(viewModel.hotkeyModifiers)
-        }
-        // Use icon instead of checkmark state - aligns with other icons
-        toggleItem.state = .off
-        toggleItem.tag = 1
-        toggleItem.image = NSImage(systemSymbolName: viewModel.isVietnameseEnabled ? "checkmark.circle.fill" : "circle", accessibilityDescription: nil)
-        
-        menu.addItem(.separator())
-        
-        // Input Method submenu
-        let inputMethodMenu = NSMenu()
-        for method in InputMethod.orderedCases {
-            let item = inputMethodMenu.addItem(
-                withTitle: method.displayName,
-                action: #selector(selectInputMethod(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.tag = method.rawValue
-            item.state = (method == viewModel.currentInputMethod) ? .on : .off
-        }
-        
-        // Build input method title with tab-aligned hotkey
-        var inputMethodTitle = "Kiểu gõ"
-        if let inputMethodHotkey = prefs.inputMethodHotkey {
-            inputMethodTitle = "Kiểu gõ\t\(inputMethodHotkey.displayString)"
-            log("📋 Input method hotkey found: \(inputMethodHotkey.displayString)")
-        } else {
-            log("📋 No input method hotkey set")
-        }
-        
-        let inputMethodItem = menu.addItem(
-            withTitle: inputMethodTitle,
-            action: nil,
-            keyEquivalent: ""
-        )
-        inputMethodItem.submenu = inputMethodMenu
-        inputMethodItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
-        inputMethodItem.tag = 2 // Tag for lookup
-        
-        // Code Table submenu
-        let codeTableMenu = NSMenu()
-        for table in CodeTable.allCases {
-            let item = codeTableMenu.addItem(
-                withTitle: table.displayName,
-                action: #selector(selectCodeTable(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.tag = table.rawValue
-            item.state = (table == viewModel.currentCodeTable) ? .on : .off
-        }
-        
-        // Build code table title with tab-aligned hotkey
-        var codeTableTitle = "Bảng mã"
-        if let codeTableHotkey = prefs.codeTableHotkey {
-            codeTableTitle = "Bảng mã\t\(codeTableHotkey.displayString)"
-            log("📋 Code table hotkey found: \(codeTableHotkey.displayString)")
-        } else {
-            log("📋 No code table hotkey set")
-        }
-        
-        let codeTableItem = menu.addItem(
-            withTitle: codeTableTitle,
-            action: nil,
-            keyEquivalent: ""
-        )
-        codeTableItem.submenu = codeTableMenu
-        codeTableItem.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: nil)
-        codeTableItem.tag = 3 // Tag for lookup
-        
-        menu.addItem(.separator())
-        
-        // Advanced Tools
-        let macroItem = menu.addItem(
-            withTitle: "Quản lý Macro...",
-            action: #selector(openMacroManagement),
-            keyEquivalent: ""
-        )
-        macroItem.target = self
-        macroItem.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
-        
-        let convertItem = menu.addItem(
-            withTitle: "Công cụ chuyển đổi...",
-            action: #selector(openZKConvertTool),
-            keyEquivalent: ""
-        )
-        convertItem.target = self
-        convertItem.image = NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: nil)
-        
-        menu.addItem(.separator())
-        
-        // Check for Updates - with dynamic status
-        let updateTitle = getUpdateMenuTitle()
-        let updateItem = menu.addItem(
-            withTitle: updateTitle,
-            action: #selector(checkForUpdates),
-            keyEquivalent: ""
-        )
-        updateItem.target = self
-        updateItem.tag = 100 // Tag for update item
-        updateItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)
-        
-        menu.addItem(.separator())
-        
-        // Preferences
-        let prefsItem = menu.addItem(
-            withTitle: "Bảng điều khiển...",
-            action: #selector(openPreferences),
-            keyEquivalent: ","
-        )
-        prefsItem.target = self
-        prefsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
-        
-        menu.addItem(.separator())
-        
-        // Quit
-        let quitItem = menu.addItem(
-            withTitle: "Thoát ZendyKey",
-            action: #selector(quit),
-            keyEquivalent: "q"
-        )
-        quitItem.target = self
-        quitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
-        
-        return menu
-    }
-    
-    private func updateMenu() {
-        guard let menu = statusItem?.menu else {
-            log("⚠️ updateMenu: menu is nil!")
-            return
-        }
-        
-        log("📋 updateMenu: currentInputMethod=\(viewModel.currentInputMethod.displayName)")
-        
-        // Update header view (tag 0)
-        if let headerItem = menu.item(withTag: 0) {
-            headerItem.view = createHeaderView()
-        }
-        
-        // Update toggle item
-        if let toggleItem = menu.item(withTag: 1) {
-            let prefs = ZKSharedSettings.shared.loadPreferences()
-            let isModifierOnly = prefs.toggleHotkey.isModifierOnly
-            
-            let baseTitle = viewModel.isVietnameseEnabled ? "Tắt Gõ Tiếng Việt" : "Bật Gõ Tiếng Việt"
-            if isModifierOnly {
-                toggleItem.title = "\(baseTitle) (\(viewModel.hotkeyDisplay))"
-            } else {
-                toggleItem.title = baseTitle
-            }
-            // Use icon instead of checkmark state - aligns with other icons
-            toggleItem.state = .off
-            toggleItem.image = NSImage(systemSymbolName: viewModel.isVietnameseEnabled ? "checkmark.circle.fill" : "circle", accessibilityDescription: nil)
-        }
-        
-        // Update input method submenu (tag 2)
-        if let inputMethodItem = menu.item(withTag: 2),
-           let submenu = inputMethodItem.submenu {
-            for method in InputMethod.orderedCases {
-                if let item = submenu.item(withTag: method.rawValue) {
-                    let shouldBeOn = (method == viewModel.currentInputMethod)
-                    item.state = shouldBeOn ? .on : .off
-                }
-            }
-        }
-        
-        // Update code table submenu (tag 3)
-        if let codeTableItem = menu.item(withTag: 3),
-           let submenu = codeTableItem.submenu {
-            for table in CodeTable.allCases {
-                if let item = submenu.item(withTag: table.rawValue) {
-                    item.state = (table == viewModel.currentCodeTable) ? .on : .off
-                }
-            }
+            modernMenuPopover.showPopover(from: sender)
         }
     }
     
-    @objc private func toggleVietnamese() {
-        viewModel.toggleVietnamese()
-    }
-    
-    @objc private func selectInputMethod(_ sender: NSMenuItem) {
-        log("📋 selectInputMethod: tag=\(sender.tag), title=\(sender.title)")
-        
-        guard let method = InputMethod(rawValue: sender.tag) else {
-            log("⚠️ selectInputMethod: Invalid tag \(sender.tag)")
-            return
-        }
-        
-        viewModel.selectInputMethod(method)
-        
-        // Show on-screen indicator
-        ZKOnScreenIndicatorController.shared.show(inputMethod: method)
-        
-        // Update menu item states immediately (synchronously)
-        if let submenu = sender.menu {
-            for item in submenu.items {
-                item.state = (item.tag == method.rawValue) ? .on : .off
-            }
-            log("✅ Updated submenu items directly")
-        }
-    }
-    
-    @objc private func selectCodeTable(_ sender: NSMenuItem) {
-        guard let table = CodeTable(rawValue: sender.tag) else { return }
-        
-        log("📋 selectCodeTable: tag=\(sender.tag), title=\(sender.title)")
-        
-        viewModel.selectCodeTable(table)
-        
-        // Show on-screen indicator
-        ZKOnScreenIndicatorController.shared.show(codeTable: table)
-        
-        // Update menu item states immediately (synchronously)
-        if let submenu = sender.menu {
-            for item in submenu.items {
-                item.state = (item.tag == table.rawValue) ? .on : .off
-            }
-        }
-    }
-    
-    @objc private func openPreferences() {
-        viewModel.openPreferences()
-    }
-    
-    @objc private func openMacroManagement() {
-        viewModel.openMacroManagement()
-    }
-    
-    @objc private func openZKConvertTool() {
-        viewModel.openZKConvertTool()
-    }
-    
-    @objc private func checkForUpdates() {
-        onCheckForUpdates?()
-    }
-    
-    @objc private func quit() {
-        viewModel.quit()
-    }
-    
-    private func convertToNSEventModifiers(_ modifiers: EventModifiers) -> NSEvent.ModifierFlags {
-        var flags: NSEvent.ModifierFlags = []
-        if modifiers.contains(.command) { flags.insert(.command) }
-        if modifiers.contains(.control) { flags.insert(.control) }
-        if modifiers.contains(.option) { flags.insert(.option) }
-        if modifiers.contains(.shift) { flags.insert(.shift) }
-        return flags
-    }
-    
-    private func convertToNSEventModifiers(_ modifiers: ModifierFlags) -> NSEvent.ModifierFlags {
-        var flags: NSEvent.ModifierFlags = []
-        if modifiers.contains(.command) { flags.insert(.command) }
-        if modifiers.contains(.control) { flags.insert(.control) }
-        if modifiers.contains(.option) { flags.insert(.option) }
-        if modifiers.contains(.shift) { flags.insert(.shift) }
-        return flags
-    }
+    // MARK: - Status Icon
     
     private func updateStatusIcon() {
         guard let button = statusItem?.button else { return }
@@ -440,7 +142,7 @@ class ZKStatusBarManager: ObservableObject {
                 let logoSize = NSSize(width: 16, height: 16)
                 let logoRect = NSRect(
                     x: (size.width - logoSize.width) / 2 - 1,
-                    y: (size.height - logoSize.height) / 2,  // Centered vertically
+                    y: (size.height - logoSize.height) / 2,
                     width: logoSize.width,
                     height: logoSize.height
                 )
@@ -509,6 +211,8 @@ class ZKStatusBarManager: ObservableObject {
         return image
     }
     
+    // MARK: - Public Methods
+    
     func updateHotkeyDisplay(_ hotkey: Hotkey) {
         viewModel.updateHotkeyDisplay(hotkey)
     }
@@ -519,68 +223,8 @@ class ZKStatusBarManager: ObservableObject {
         log("🎨 Menu bar icon style updated to: \(style.rawValue)")
     }
     
-    /// Create premium header view with glassmorphism, gradient toggle, and micro-interactions
-    private func createHeaderView() -> NSView {
-        let width: CGFloat = 260
-        let height: CGFloat = 60
-        
-        // Use SwiftUI for premium design
-        let headerContent = ZKMenuBarHeaderView(
-            isVietnameseEnabled: Binding(
-                get: { [weak self] in self?.viewModel.isVietnameseEnabled ?? true },
-                set: { [weak self] newValue in
-                    self?.viewModel.setVietnameseEnabled(newValue)
-                    ZKSoundManager.shared.playToggleSound(enabled: newValue)
-                    self?.updateStatusIcon()
-                    self?.updateMenu()
-                }
-            ),
-            inputMethodName: viewModel.currentInputMethod.displayName,
-            codeTableName: viewModel.currentCodeTable.displayName,
-            hotkeyDisplay: viewModel.hotkeyDisplay
-        )
-        
-        let hostingView = NSHostingView(rootView: headerContent)
-        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: height)
-        
-        // Wrap in NSView for menu item
-        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
-        containerView.addSubview(hostingView)
-        
-        return containerView
-    }
-
-    /// Rebuild the menu to reflect updated hotkeys and preferences
+    /// Rebuild menu is now no-op since we use dynamic popover
     func rebuildMenu() {
-        guard statusItem != nil else { return }
-        
-        log("🔄 Rebuilding menu with updated settings")
-        
-        // Create new menu with updated hotkey
-        let menu = createMenu()
-        statusItem?.menu = menu
-        
-        log("✅ Menu rebuilt successfully")
-    }
-    
-    private var cancellables = Set<AnyCancellable>()
-    
-    // MARK: - Update Status Helpers
-    
-    private func getUpdateMenuTitle() -> String {
-        switch viewModel.updateStatus {
-        case .idle: return "Kiểm tra cập nhật..."
-        case .checking: return "🔄 Đang kiểm tra..."
-        case .upToDate: return "✓ Đã cập nhật mới nhất"
-        case .available(let version): return "⬆ Có bản cập nhật v\(version)"
-        case .downloading(let progress): return "⬇ Đang tải... \(Int(progress * 100))%"
-        case .error: return "⚠️ Lỗi - thử lại"
-        }
-    }
-    
-    private func updateUpdateMenuItem() {
-        guard let menu = statusItem?.menu,
-              let updateItem = menu.item(withTag: 100) else { return }
-        updateItem.title = getUpdateMenuTitle()
+        // No-op: Modern popover is rebuilt each time it's shown
     }
 }

@@ -189,7 +189,7 @@ class ZKOnScreenIndicatorController {
             defer: false
         )
         
-        window.level = .floating
+        window.level = .popUpMenu
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
