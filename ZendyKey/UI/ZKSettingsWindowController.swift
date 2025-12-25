@@ -20,11 +20,22 @@ class ZKSettingsWindowController: NSWindowController {
             defer: false
         )
 
-        window.title = "Cài đặt ZendyKey"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        window.title = "ZendyKey v\(version)"
         window.titlebarAppearsTransparent = false
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()
+        
+        // Apply appearance mode
+        switch AppearanceManager.shared.currentMode {
+        case .system:
+            window.appearance = nil
+        case .dark:
+            window.appearance = NSAppearance(named: .darkAqua)
+        case .light:
+            window.appearance = NSAppearance(named: .aqua)
+        }
 
         self.init(window: window)
 

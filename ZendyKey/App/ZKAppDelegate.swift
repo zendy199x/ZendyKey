@@ -39,6 +39,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private var switchZendyKeyHotkeyMonitor: Any?
     private var switchZendyKeyGlobalHotkeyMonitor: Any?
     private var updaterController: SPUStandardUpdaterController?
+    private var onboardingWindow: NSWindow?
 
     // MARK: - Initialization
 
@@ -75,8 +76,16 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Application Lifecycle
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load Injection III for hot reload during development
+        #if DEBUG
+        Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/iOSInjection.bundle")?.load()
+        #endif
+        
         // Set shared instance for access from SwiftUI views
         ZKAppDelegate.shared = self
+        
+        // Apply saved appearance mode
+        AppearanceManager.shared.applyAppearance()
         
         // Create debug window first
         setupDebugWindow()
@@ -103,6 +112,10 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup global hotkey
         setupGlobalHotkey()
         
+        // Setup input method and code table hotkeys
+        setupInputMethodHotkey()
+        setupCodeTableHotkey()
+        
         // Setup read word hotkey
         setupReadWordHotkey()
 
@@ -115,11 +128,101 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup input source manager
         setupZKInputSourceManager()
 
+        // Setup input source observer (auto-disable for non-Latin keyboards)
+        setupInputSourceObserver()
+
         // Setup Sparkle auto-update
         setupSparkleUpdater()
+        
+        // Setup Vietnamese toggle notifications (for Settings integration)
+        setupVietnameseToggleObservers()
+        
+        // Show onboarding on first launch
+        showOnboardingIfNeeded()
+        
+        // Silent update check after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.silentUpdateCheck()
+        }
 
         debugWindowController?.updateStatus("ZendyKey started successfully")
         debugWindowController?.logEvent("✅ ZendyKey started successfully")
+    }
+    
+    private func setupVietnameseToggleObservers() {
+        // Listen for toggle requests from Settings
+        NotificationCenter.default.addObserver(
+            forName: .toggleVietnameseFromSettings,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let enabled = notification.userInfo?["enabled"] as? Bool {
+                self?.statusBarManager?.viewModel.isVietnameseEnabled = enabled
+                self?.debugWindowController?.logEvent("🔄 Vietnamese mode \(enabled ? "enabled" : "disabled") from Settings")
+            }
+        }
+        
+        // Listen for state request from Settings
+        NotificationCenter.default.addObserver(
+            forName: .requestVietnameseState,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            let isEnabled = self?.statusBarManager?.viewModel.isVietnameseEnabled ?? true
+            NotificationCenter.default.post(
+                name: .vietnameseModeDidChange,
+                object: nil,
+                userInfo: ["enabled": isEnabled]
+            )
+        }
+        
+        debugWindowController?.logEvent("  ✅ Vietnamese toggle observers setup")
+    }
+    
+    private func showOnboardingIfNeeded() {
+        if !hasCompletedOnboarding() {
+            debugWindowController?.logEvent("📋 First launch - showing onboarding")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.showOnboarding()
+            }
+        }
+    }
+    
+    func showOnboarding() {
+        // Observe onboarding completion notification (like GoNhanh pattern)
+        NotificationCenter.default.addObserver(
+            forName: .onboardingCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.debugWindowController?.logEvent("✅ Onboarding completed via notification")
+            
+            // Sync input method from UserDefaults.standard to ZKSharedSettings
+            let inputMethod = UserDefaults.standard.integer(forKey: "ZendyKey.inputMethod")
+            if inputMethod > 0 {
+                ZKSharedSettings.shared.inputMethod = inputMethod
+            }
+            
+            // Clear window reference (window already closed by OnboardingView)
+            self?.onboardingWindow = nil
+        }
+        
+        // Create onboarding window if not exists (like GoNhanh pattern)
+        if onboardingWindow == nil {
+            let view = ZKOnboardingView()
+            let controller = NSHostingController(rootView: view)
+            let window = NSWindow(contentViewController: controller)
+            window.title = "Chào mừng đến với ZendyKey"
+            window.styleMask = [.titled, .closable]
+            window.setContentSize(NSSize(width: 600, height: 680))
+            window.center()
+            // Do NOT set window.delegate = self here - it can cause issues when closing
+            window.isReleasedWhenClosed = false
+            onboardingWindow = window
+        }
+        
+        onboardingWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -153,6 +256,15 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        return true
+    }
+    
+    /// Handle Dock icon click - open preferences
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // No visible windows, open preferences
+            openPreferences()
+        }
         return true
     }
     
@@ -339,6 +451,12 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
     
+    /// Convenience method to open settings with specific section
+    @available(macOS 13.0, *)
+    func openSettingsWithSection(_ section: SettingsSection) {
+        openSettings(selectedSection: section)
+    }
+    
     func openLegacyPreferences(selectedTab: Int = 0) {
         // Close existing window if tab is different
         if let existingController = preferencesWindowController {
@@ -419,12 +537,49 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Update hotkey
         setupGlobalHotkey(with: preferences.toggleHotkey)
         
+        // Update input method and code table hotkeys
+        setupInputMethodHotkey(with: preferences.inputMethodHotkey)
+        setupCodeTableHotkey(with: preferences.codeTableHotkey)
+        
+        // Rebuild menu to show updated hotkeys
+        statusBarManager?.rebuildMenu()
+        
         // Update switch ZendyKey hotkey
         setupSwitchZendyKeyHotkey(with: preferences.switchToZendyKeyHotkey)
         
-        // Update undo typing (Esc key)
-        keyboardHandler?.undoTypingEnabled = preferences.undoTypingEnabled
-        debugWindowController?.logEvent(preferences.undoTypingEnabled ? "  ✅ Undo typing enabled (Esc key)" : "  ⏹️ Undo typing disabled")
+        // Update restore key (ESC/Option/Control)
+        let restoreEnabled = preferences.restoreOnEscape
+        keyboardHandler?.restoreKeyEnabled = restoreEnabled
+        keyboardHandler?.restoreKeyCode = preferences.restoreKey.rawValue
+        debugWindowController?.logEvent(restoreEnabled ? "  ✅ Restore to raw keys enabled (\(preferences.restoreKey.displayName))" : "  ⏹️ Restore to raw keys disabled")
+        
+        // Update pause key (hold to temporarily switch to English)
+        eventTapManager?.pauseKeyEnabled = preferences.pauseKeyEnabled
+        eventTapManager?.pauseKeyCode = preferences.pauseKey
+        if preferences.pauseKeyEnabled {
+            debugWindowController?.logEvent("  ✅ Pause key enabled (\(preferences.pauseKeyName))")
+        }
+        
+        // Sync to engine settings
+        keyboardHandler?.engine.vEscRestoreEnabled = restoreEnabled ? 1 : 0
+        keyboardHandler?.engine.vEnglishAutoRestore = preferences.autoRestoreEnglishEnabled ? 1 : 0
+        keyboardHandler?.engine.vSoundOnToggle = preferences.beepOnToggle ? 1 : 0
+        keyboardHandler?.engine.vSkipWShortcut = preferences.skipWShortcut ? 1 : 0
+        keyboardHandler?.engine.vFreeToneEnabled = preferences.freeToneEnabled ? 1 : 0
+        keyboardHandler?.engine.vPerAppModeEnabled = preferences.perAppModeEnabled ? 1 : 0
+        
+        if preferences.autoRestoreEnglishEnabled {
+            debugWindowController?.logEvent("  ✅ Auto-restore English enabled")
+        }
+        if preferences.skipWShortcut {
+            debugWindowController?.logEvent("  ✅ W shortcut skip enabled")
+        }
+        if preferences.freeToneEnabled {
+            debugWindowController?.logEvent("  ✅ Free tone placement enabled")
+        }
+        if preferences.perAppModeEnabled {
+            debugWindowController?.logEvent("  ✅ Per-app mode enabled")
+        }
 
         debugWindowController?.logEvent("✅ Preferences applied (including advanced features)")
     }
@@ -457,11 +612,25 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private func checkAndRequestPermissions() {
         guard let manager = eventTapManager else { return }
         
-        if !manager.checkAccessibilityPermission() {
-            showPermissionAlert()
-            // Start monitoring for permission changes
-            startPermissionMonitoring()
+        // Check if permission is already granted - skip everything if yes
+        if manager.checkAccessibilityPermission() {
+            debugWindowController?.logEvent("✅ Accessibility permission already granted - skipping prompt")
+            return
         }
+        
+        // During first launch (onboarding), don't show the alert
+        // The onboarding flow will handle permission request
+        if !hasCompletedOnboarding() {
+            debugWindowController?.logEvent("📋 Skipping permission alert - onboarding will handle it")
+            // Just start monitoring for permission changes silently
+            startPermissionMonitoring()
+            return
+        }
+        
+        // Only show permission request after onboarding is completed
+        showPermissionAlert()
+        // Start monitoring for permission changes
+        startPermissionMonitoring()
     }
     
     private func showPermissionAlert() {
@@ -500,31 +669,33 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func startPermissionMonitoring() {
-        // Check permission every 2 seconds
-        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        // Check permission every 1 second - CONTINUOUSLY (never stop)
+        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self,
                   let manager = self.eventTapManager else { return }
             
-            if manager.checkAccessibilityPermission() {
-                // Permission granted! Try to start event tap
+            let hasPermission = manager.checkAccessibilityPermission()
+            
+            if hasPermission && !manager.isRunning {
+                // Permission granted but event tap not running - try to start
                 self.debugWindowController?.logEvent("✅ Accessibility permission granted!")
                 
                 do {
                     try manager.start()
                     self.debugWindowController?.updateStatus("Event tap started - Ready to type!")
-                    self.debugWindowController?.logEvent("✅ Event tap started successfully after permission grant")
-                    
-                    // Stop monitoring
-                    self.permissionCheckTimer?.invalidate()
-                    self.permissionCheckTimer = nil
-                    
+                    self.debugWindowController?.logEvent("✅ Event tap started successfully")
                 } catch {
                     self.debugWindowController?.logEvent("❌ Failed to start event tap: \(error)")
                 }
+            } else if !hasPermission && manager.isRunning {
+                // Permission revoked while event tap was running - stop it
+                self.debugWindowController?.logEvent("⚠️ Accessibility permission revoked!")
+                manager.stop()
+                self.debugWindowController?.updateStatus("Permission revoked - Event tap stopped")
             }
         }
         
-        debugWindowController?.logEvent("👀 Started monitoring for permission changes")
+        debugWindowController?.logEvent("👀 Started continuous permission monitoring")
     }
 
     private func setupGlobalHotkey() {
@@ -544,6 +715,64 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         debugWindowController?.logEvent("  ✅ Toggle hotkey configured in EventTap: \(hotkey.displayString)")
+    }
+    
+    private func setupInputMethodHotkey() {
+        let preferences = ZKSharedSettings.shared.loadPreferences()
+        setupInputMethodHotkey(with: preferences.inputMethodHotkey)
+    }
+    
+    private func setupInputMethodHotkey(with hotkey: Hotkey?) {
+        eventTapManager?.inputMethodHotkey = hotkey
+        eventTapManager?.onInputMethodHotkey = { [weak self] in
+            guard let viewModel = self?.statusBarManager?.viewModel else { return }
+            
+            // Cycle to next input method in order: Telex → VNI → VIQR → Simple Telex → Simple Telex 2 → back to Telex
+            let currentMethod = viewModel.currentInputMethod
+            let newMethod = currentMethod.next()
+            viewModel.selectInputMethod(newMethod)
+            
+            // Show on-screen indicator
+            ZKOnScreenIndicatorController.shared.show(inputMethod: newMethod)
+            
+            self?.debugWindowController?.logEvent("🔄 Switched input method to \(newMethod.displayName) via hotkey")
+        }
+        
+        if let hotkey = hotkey {
+            debugWindowController?.logEvent("  ✅ Input method hotkey configured: \(hotkey.displayString)")
+        }
+    }
+    
+    private func setupCodeTableHotkey() {
+        let preferences = ZKSharedSettings.shared.loadPreferences()
+        setupCodeTableHotkey(with: preferences.codeTableHotkey)
+    }
+    
+    private func setupCodeTableHotkey(with hotkey: Hotkey?) {
+        eventTapManager?.codeTableHotkey = hotkey
+        eventTapManager?.onCodeTableHotkey = { [weak self] in
+            guard let viewModel = self?.statusBarManager?.viewModel else { return }
+            
+            // Cycle to next code table: Unicode → TCVN3 → VNI Windows → Unicode Compound → Vietnamese Locale CP1258 → back to Unicode
+            let currentTable = viewModel.currentCodeTable
+            let newTable = currentTable.next()
+            viewModel.selectCodeTable(newTable)
+            
+            // Show on-screen indicator
+            ZKOnScreenIndicatorController.shared.show(codeTable: newTable)
+            
+            self?.debugWindowController?.logEvent("🔄 Switched code table to \(newTable.displayName) via hotkey")
+        }
+        
+        if let hotkey = hotkey {
+            debugWindowController?.logEvent("  ✅ Code table hotkey configured: \(hotkey.displayString)")
+        }
+    }
+    
+    /// Public method to set hotkey recording state
+    /// When true, configured hotkeys are bypassed to allow recording new hotkeys
+    func setHotkeyRecordingState(_ isRecording: Bool) {
+        eventTapManager?.isRecordingHotkey = isRecording
     }
     
     private func setupReadWordHotkey() {
@@ -753,11 +982,14 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         
         debugWindowController?.logEvent("🔍 Smart Switch check: enabled=\(handler.smartSwitchEnabled), vUseSmartSwitchKey=\(handler.engine.vUseSmartSwitchKey)")
         
-        guard handler.smartSwitchEnabled else { return }
-        
         // Get the new active app
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               let bundleId = app.bundleIdentifier else { return }
+        
+        // Handle per-app code table restore (OpenKey vRememberCode feature)
+        statusBarManager?.viewModel.restoreCodeTableForApp(bundleId: bundleId)
+        
+        guard handler.smartSwitchEnabled else { return }
         
         // Get current language from UI (StatusBar) - this is the source of truth
         let currentLanguage = statusBarManager?.viewModel.isVietnameseEnabled == true ? 1 : 0
@@ -1002,6 +1234,107 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             
         } catch {
             debugWindowController?.logEvent("❌ Failed to initialize Sparkle: \(error)")
+        }
+    }
+    
+    // MARK: - Input Source Observer (Auto-disable for non-Latin keyboards)
+    
+    private func setupInputSourceObserver() {
+        // Start input source observer
+        ZKInputSourceObserver.shared.start()
+        
+        // Setup callbacks for "Other Language Mode" feature (OpenKey vOtherLanguage)
+        // These callbacks enable saving Vietnamese mode when switching to non-Latin keyboards
+        // and restoring it when switching back to Latin keyboards
+        ZKInputSourceObserver.shared.getCurrentVietnameseMode = { [weak self] in
+            return self?.statusBarManager?.viewModel.isVietnameseEnabled ?? false
+        }
+        
+        ZKInputSourceObserver.shared.onRestoreVietnameseMode = { [weak self] savedMode in
+            guard let self = self else { return }
+            self.statusBarManager?.viewModel.setVietnameseEnabled(savedMode)
+            self.keyboardHandler?.setVietnamese(savedMode)
+            self.debugWindowController?.logEvent("🌍 Other Language Mode: Restored Vietnamese mode = \(savedMode)")
+        }
+        
+        // Set callback to handle input source changes
+        ZKInputSourceObserver.shared.onInputSourceChanged = { [weak self] isAllowed in
+            guard let self = self else { return }
+            
+            // Update status bar to reflect input source allowed state
+            statusBarManager?.viewModel.isInputSourceAllowed = isAllowed
+            
+            // Check if auto-switch is enabled in preferences
+            let prefs = ZKSharedSettings.shared.loadPreferences()
+            guard prefs.inputSourceAutoSwitch else { return }
+            
+            if isAllowed {
+                // ABC/Latin keyboard: restore user's previous enabled state
+                // Don't auto-enable - just allow user to use ZendyKey if they want
+                debugWindowController?.logEvent("🔤 Input source allowed (Latin) - ZendyKey available")
+            } else {
+                // Non-Latin keyboard (Japanese/Korean/Chinese): auto-disable ZendyKey
+                // This prevents ZendyKey from interfering with other input methods
+                // Note: "Other Language Mode" feature will handle restoring the state when switching back
+                if statusBarManager?.viewModel.isVietnameseEnabled == true {
+                    statusBarManager?.viewModel.setVietnameseEnabled(false)
+                    debugWindowController?.logEvent("🔤 Non-Latin input source detected - ZendyKey auto-disabled")
+                }
+            }
+        }
+        
+        debugWindowController?.logEvent("✅ Input Source Observer started")
+        debugWindowController?.logEvent("   Current display char: \(ZKInputSourceObserver.shared.currentDisplayChar)")
+        debugWindowController?.logEvent("   Is allowed: \(ZKInputSourceObserver.shared.isAllowedInputSource)")
+    }
+    
+    // MARK: - Silent Update Check
+    
+    private func silentUpdateCheck() {
+        guard let updater = updaterController?.updater else {
+            debugWindowController?.logEvent("⚠️ Silent update check: updater not available")
+            return
+        }
+        
+        // Update status in ViewModel
+        statusBarManager?.viewModel.updateStatus = .checking
+        debugWindowController?.logEvent("🔍 Silent update check started...")
+        
+        // Check for updates in background (silent mode)
+        updater.checkForUpdatesInBackground()
+        
+        // Reset status after a few seconds (Sparkle handles the actual UI)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            // If still checking, set to idle (no update found silently)
+            if case .checking = self?.statusBarManager?.viewModel.updateStatus {
+                self?.statusBarManager?.viewModel.updateStatus = .idle
+                self?.debugWindowController?.logEvent("✅ Silent update check completed")
+            }
+        }
+    }
+}
+
+// MARK: - NSWindowDelegate
+
+extension ZKAppDelegate: NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // If it's the onboarding window, allow closing but cleanup first
+        if sender === onboardingWindow {
+            debugWindowController?.logEvent("📋 Onboarding window closing...")
+            // Clean up reference before closing
+            onboardingWindow = nil
+        }
+        return true
+    }
+    
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        
+        // If onboarding window is closing and onboarding not completed, handle gracefully
+        if window === onboardingWindow || (onboardingWindow == nil && !hasCompletedOnboarding()) {
+            debugWindowController?.logEvent("⚠️ Onboarding closed without completing")
+            // Clean up safely
+            onboardingWindow = nil
         }
     }
 }

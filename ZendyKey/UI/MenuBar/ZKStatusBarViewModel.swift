@@ -16,6 +16,8 @@ class ZKStatusBarViewModel: ObservableObject {
     @Published var hotkeyDisplay = "⌘⇧V"
     @Published var hotkeyKeyEquivalent: KeyEquivalent = "v"
     @Published var hotkeyModifiers: EventModifiers = [.command, .shift]
+    @Published var updateStatus: ZKUpdateStatus = .idle
+    @Published var isInputSourceAllowed: Bool = true
     
     private weak var keyboardHandler: ZKKeyboardEventHandler?
     private weak var eventTapManager: ZKEventTapManager?
@@ -49,11 +51,45 @@ class ZKStatusBarViewModel: ObservableObject {
         keyboardHandler?.setVietnamese(isVietnameseEnabled)
         log("🔄 Vietnamese toggled: \(isVietnameseEnabled ? "ON" : "OFF")")
         
-        // Play beep sound if enabled
+        // Play toggle sound via SoundManager
+        ZKSoundManager.shared.playToggleSound(enabled: isVietnameseEnabled)
+        
+        // Show on-screen indicator if enabled
         let prefs = ZKSharedSettings.shared.loadPreferences()
-        if prefs.beepOnToggle {
-            NSSound.beep()
+        if prefs.showOnScreenIndicator {
+            ZKOnScreenIndicatorController.shared.show(isVietnamese: isVietnameseEnabled)
         }
+        
+        // Notify Settings panel to update toggle with animation
+        NotificationCenter.default.post(
+            name: .vietnameseModeDidChange,
+            object: nil,
+            userInfo: ["enabled": isVietnameseEnabled]
+        )
+        
+        // Save language for current app (Smart Switch)
+        saveLanguageForCurrentApp()
+    }
+    
+    /// Set Vietnamese enabled state directly (used by inline toggle in header)
+    func setVietnameseEnabled(_ enabled: Bool) {
+        guard enabled != isVietnameseEnabled else { return }
+        isVietnameseEnabled = enabled
+        keyboardHandler?.setVietnamese(enabled)
+        log("🔄 Vietnamese set to: \(enabled ? "ON" : "OFF")")
+        
+        // Show on-screen indicator if enabled
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        if prefs.showOnScreenIndicator {
+            ZKOnScreenIndicatorController.shared.show(isVietnamese: enabled)
+        }
+        
+        // Notify Settings panel to update toggle with animation
+        NotificationCenter.default.post(
+            name: .vietnameseModeDidChange,
+            object: nil,
+            userInfo: ["enabled": enabled]
+        )
         
         // Save language for current app (Smart Switch)
         saveLanguageForCurrentApp()
@@ -105,6 +141,9 @@ class ZKStatusBarViewModel: ObservableObject {
         var prefs = ZKSharedSettings.shared.loadPreferences()
         prefs.inputMethod = method
         ZKSharedSettings.shared.savePreferences(prefs)
+        
+        // Notify Settings panel to update with animation
+        NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
 
         // Verify saved
         let savedPrefs = ZKSharedSettings.shared.loadPreferences()
@@ -122,7 +161,50 @@ class ZKStatusBarViewModel: ObservableObject {
         prefs.codeTable = table
         ZKSharedSettings.shared.savePreferences(prefs)
         
+        // Notify Settings panel to update with animation
+        NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
+        
+        // Save code table for current app (Remember Code Table Per App - OpenKey vRememberCode)
+        saveCodeTableForCurrentApp()
+        
         log("✅ CodeTable set to \(table.displayName)")
+    }
+    
+    /// Save current code table for the active app (for Remember Code Table Per App feature)
+    private func saveCodeTableForCurrentApp() {
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        guard prefs.rememberCodeTablePerApp else { return }
+        
+        guard let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
+        
+        // Skip saving for ZendyKey itself
+        if bundleId.contains("ZendyKey") { return }
+        
+        ZKPerAppCodeTableManager.shared.setCodeTable(forBundleId: bundleId, codeTable: currentCodeTable.rawValue)
+        log("📝 Per-App Code Table: Saved '\(bundleId)' → \(currentCodeTable.displayName)")
+    }
+    
+    /// Restore code table for the given app (called when app switches)
+    func restoreCodeTableForApp(bundleId: String) {
+        let prefs = ZKSharedSettings.shared.loadPreferences()
+        guard prefs.rememberCodeTablePerApp else { return }
+        
+        // Skip for ZendyKey itself
+        if bundleId.contains("ZendyKey") { return }
+        
+        if let savedCodeTableRaw = ZKPerAppCodeTableManager.shared.getCodeTable(forBundleId: bundleId),
+           let savedCodeTable = CodeTable(rawValue: savedCodeTableRaw),
+           savedCodeTable != currentCodeTable {
+            log("🔄 Per-App Code Table: Restoring '\(bundleId)' → \(savedCodeTable.displayName)")
+            
+            currentCodeTable = savedCodeTable
+            keyboardHandler?.codeTable = savedCodeTable
+            
+            // Also update preferences
+            var newPrefs = ZKSharedSettings.shared.loadPreferences()
+            newPrefs.codeTable = savedCodeTable
+            ZKSharedSettings.shared.savePreferences(newPrefs)
+        }
     }
     
     func openPreferences() {
@@ -139,6 +221,16 @@ class ZKStatusBarViewModel: ObservableObject {
     
     func quit() {
         NSApplication.shared.terminate(nil)
+    }
+    
+    func openStatistics() {
+        // Open settings with statistics section selected
+        if #available(macOS 13.0, *) {
+            ZKAppDelegate.shared?.openSettingsWithSection(.statistics)
+        } else {
+            // Fallback for older macOS - just open preferences
+            ZKAppDelegate.shared?.openPreferences()
+        }
     }
     
     func updateHotkeyDisplay(_ hotkey: Hotkey? = nil) {

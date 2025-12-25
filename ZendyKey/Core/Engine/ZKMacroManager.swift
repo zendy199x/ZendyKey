@@ -2,7 +2,7 @@
 //  ZKMacroManager.swift
 //  ZendyKey
 //
-//  Macro management - Ported from OpenKey Macro.cpp
+//  Macro management
 //
 
 import Foundation

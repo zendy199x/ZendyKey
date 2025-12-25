@@ -8,6 +8,8 @@
 import Foundation
 import Cocoa
 
+// MARK: - Menu Bar Icon Style
+
 enum MenuBarIconStyle: String, Codable, CaseIterable {
     case x = "X"
     case v = "V"
@@ -20,20 +22,77 @@ enum MenuBarIconStyle: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - Restore Key Options
+
+enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
+    case esc = 53      // ESC key code
+    case option = 58   // Option key code
+    case control = 59  // Control key code
+    
+    var id: UInt16 { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .esc: return "ESC"
+        case .option: return "Option (⌥)"
+        case .control: return "Control (⌃)"
+        }
+    }
+    
+    var symbol: String {
+        switch self {
+        case .esc: return "⎋"
+        case .option: return "⌥"
+        case .control: return "⌃"
+        }
+    }
+}
+
+// MARK: - SendKeyStepByStep App Model
+
+struct SendKeyStepByStepApp: Codable, Identifiable, Equatable {
+    var id: String { bundleIdentifier }
+    let bundleIdentifier: String
+    let name: String
+    let path: String
+    
+    init(bundleIdentifier: String, name: String, path: String) {
+        self.bundleIdentifier = bundleIdentifier
+        self.name = name
+        self.path = path
+    }
+    
+    init?(from url: URL) {
+        guard let bundle = Bundle(url: url),
+              let bundleId = bundle.bundleIdentifier else {
+            return nil
+        }
+        self.bundleIdentifier = bundleId
+        self.name = FileManager.default.displayName(atPath: url.path)
+        self.path = url.path
+    }
+}
+
 
 
 struct Preferences: Codable {
     // Hotkey settings
     var toggleHotkey: Hotkey = Hotkey(keyCode: 9, modifiers: [.command, .shift]) // Default: Cmd+Shift+V
-    var undoTypingEnabled: Bool = false          // Enable undo typing with Esc key
+    var inputMethodHotkey: Hotkey? = nil  // Optional: Hotkey to switch input method
+    var codeTableHotkey: Hotkey? = nil    // Optional: Hotkey to switch code table
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
+    var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
+    var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
     
     // Input settings
     var inputMethod: InputMethod = .telex
     var codeTable: CodeTable = .unicode
     var modernStyle: Bool = false
     var spellCheckEnabled: Bool = false
+    var grammarCheckEnabled: Bool = true       // Auto-fix grammar: ưo→ươ, mark position adjustment
     var fixAutocomplete: Bool = true
+    var autoRestoreEnglishEnabled: Bool = false  // Auto-restore English when foreign pattern detected
+    var rememberCodeTable: Bool = true           // Remember code table between sessions
     
     // Advanced features
     var quickTelexEnabled: Bool = true           // cc→ch, gg→gi, etc.
@@ -45,15 +104,35 @@ struct Preferences: Codable {
     var freeMarkEnabled: Bool = false            // Free mark placement (đặt dấu tự do)
     var tempOffSpellingEnabled: Bool = false     // Temp off spelling with Ctrl key
     var tempOffEngineEnabled: Bool = false       // Temp off engine with Option key
+    var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
+    var freeToneEnabled: Bool = false            // Free tone placement without validation
+    var perAppModeEnabled: Bool = false          // Remember language mode per application
+    var rememberCodeTablePerApp: Bool = true     // Remember code table per app (OpenKey vRememberCode)
+    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard (OpenKey vOtherLanguage)
+    
+    // Restore key configuration
+    var restoreOnEscape: Bool = true             // Enable restore to raw keys
+    var restoreKey: RestoreKey = .esc            // Key to restore raw input
+    
+    // Pause key configuration
+    var pauseKeyEnabled: Bool = false            // Hold key to temporarily switch to English
+    var pauseKey: UInt16 = 58                    // Default: Option key
+    var pauseKeyName: String = "Option"          // Display name for pause key
     
     // Macro settings
     var macroEnabled: Bool = false               // Enable text shortcuts
     var macroInEnglishMode: Bool = false         // Use macro in English mode
     var autoCapsMacro: Bool = false              // Auto capitalize macro output
     
+    // Compatibility settings
+    var sendKeyStepByStep: Bool = false          // Global step-by-step key sending
+    var fixChromiumBrowser: Bool = true          // Fix Chromium browser issues
+    var performLayoutCompat: Bool = false        // Layout compatibility mode
+    
     // Smart switch settings
     var smartSwitchEnabled: Bool = false         // Remember language per app
     var detectOverlayApps: Bool = false          // Detect Spotlight/Raycast/Alfred overlay apps
+    var inputSourceAutoSwitch: Bool = true       // Auto-disable for non-Latin input sources
     
     // Debug settings
     var debugModeEnabled: Bool = false           // Show debug window (even in production)
@@ -67,9 +146,14 @@ struct Preferences: Codable {
     var showDockIcon: Bool = false               // Show icon in Dock (menu bar always visible)
     var startAtLogin: Bool = false
     var menuBarIconStyle: MenuBarIconStyle = .x  // Icon style for menubar
+    var useVietnameseMenubarIcon: Bool = false   // Use V icon when Vietnamese mode
+    var menuBarIconSize: Double = 18.0           // Menu bar icon size in pixels
     
     // Excluded apps - apps where Vietnamese input is disabled
     var excludedApps: [ExcludedApp] = []
+    
+    // SendKeyStepByStep apps
+    var sendKeyStepByStepApps: [SendKeyStepByStepApp] = []
 }
 
 // MARK: - Excluded App Model
@@ -132,6 +216,15 @@ struct Hotkey: Codable, Equatable {
             0x31: "Space", 0x24: "Return", 0x35: "Esc"
         ]
         return mapping[keyCode]
+    }
+    
+    /// Returns the key character for use with NSMenuItem.keyEquivalent (lowercase)
+    var keyEquivalentString: String {
+        if isModifierOnly { return "" }
+        if let char = keyCodeToCharacter(keyCode) {
+            return char.lowercased()
+        }
+        return ""
     }
 }
 

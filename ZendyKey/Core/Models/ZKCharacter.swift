@@ -204,6 +204,29 @@ struct ZKCharacter: Equatable, Hashable {
 
         return ""
     }
+    
+    /// Check if this character is a Vietnamese-specific character
+    /// (has diacritics, special vowels, or is đ/Đ)
+    var isVietnameseChar: Bool {
+        // Check for đ consonant
+        if consonant == .dd {
+            return true
+        }
+        
+        // Check for vowel with tone
+        if vowel != nil && tone != .none {
+            return true
+        }
+        
+        // Check for special Vietnamese vowels (circumflex, breve, horn)
+        if let v = vowel {
+            if v.hasCircumflex || v.hasBreve || v.hasHorn {
+                return true
+            }
+        }
+        
+        return false
+    }
 }
 
 // MARK: - Code Tables
@@ -228,6 +251,14 @@ enum CodeTable: Int, CaseIterable, Codable {
     var requiresDoubleBackspace: Bool {
         self == .vniWindows || self == .unicodeCompound
     }
+    
+    /// Get next code table in order (for cycling via hotkey)
+    func next() -> CodeTable {
+        let allCases = CodeTable.allCases
+        guard let currentIndex = allCases.firstIndex(of: self) else { return .unicode }
+        let nextIndex = (currentIndex + 1) % allCases.count
+        return allCases[nextIndex]
+    }
 }
 
 // MARK: - Input Methods
@@ -235,15 +266,41 @@ enum CodeTable: Int, CaseIterable, Codable {
 enum InputMethod: Int, CaseIterable, Codable {
     case telex = 0
     case vni = 1
-    case simpleTelex1 = 2
-    case simpleTelex2 = 3
+    case viqr = 2
+    case simpleTelex1 = 3
+    case simpleTelex2 = 4
+    
+    /// Ordered cases for display: Telex → VNI → VIQR → Simple Telex → Simple Telex 2
+    static var orderedCases: [InputMethod] {
+        [.telex, .vni, .viqr, .simpleTelex1, .simpleTelex2]
+    }
+    
+    /// Get next input method in order (for cycling via hotkey)
+    func next() -> InputMethod {
+        let ordered = InputMethod.orderedCases
+        guard let currentIndex = ordered.firstIndex(of: self) else { return .telex }
+        let nextIndex = (currentIndex + 1) % ordered.count
+        return ordered[nextIndex]
+    }
     
     var displayName: String {
         switch self {
         case .telex: return "Telex"
         case .vni: return "VNI"
+        case .viqr: return "VIQR"
         case .simpleTelex1: return "Simple Telex 1"
         case .simpleTelex2: return "Simple Telex 2"
+        }
+    }
+    
+    /// Description for UI - shows input method rules
+    var description: String {
+        switch self {
+        case .telex: return "aa→â, dd→đ, aw→ă, s/f/r/x/j→dấu"
+        case .vni: return "a6→â, d9→đ, a8→ă, 1/2/3/4/5→dấu"
+        case .viqr: return "a^→â, a'→á, a`→à, dd→đ"
+        case .simpleTelex1: return "Telex đơn giản 1"
+        case .simpleTelex2: return "Telex đơn giản 2"
         }
     }
 }

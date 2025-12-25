@@ -24,6 +24,23 @@ class ZKEventTapManager {
     var toggleHotkey: Hotkey?
     var onToggleHotkey: (() -> Void)?
     
+    // Input method hotkey configuration
+    var inputMethodHotkey: Hotkey?
+    var onInputMethodHotkey: (() -> Void)?
+    
+    // Code table hotkey configuration
+    var codeTableHotkey: Hotkey?
+    var onCodeTableHotkey: (() -> Void)?
+    
+    // Pause key configuration
+    var pauseKeyEnabled: Bool = false
+    var pauseKeyCode: UInt16 = 58  // Default: Option key
+    var onPauseKeyDown: (() -> Void)?
+    var onPauseKeyUp: (() -> Void)?
+    
+    // Recording mode - when true, hotkeys are bypassed to allow recording new hotkeys
+    var isRecordingHotkey: Bool = false
+    
     // Note: Undo typing key is handled by ZKKeyboardEventHandler directly
     // because it needs to check engine state before deciding to consume the key
     
@@ -34,6 +51,14 @@ class ZKEventTapManager {
         var currentModifiers: ModifierFlags = []
         var targetModifiersReached: Bool = false  // True when all required modifiers were pressed
         var hasTriggered: Bool = false
+    }
+    
+    // Pause key state tracking
+    private var pauseKeyState: PauseKeyState = PauseKeyState()
+    
+    private struct PauseKeyState {
+        var isHolding: Bool = false
+        var lastKeyCode: UInt16 = 0
     }
     
     // MARK: - Delegate Protocol
@@ -206,8 +231,56 @@ class ZKEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
+        // Pause key handling (hold to temporarily switch to English)
+        if pauseKeyEnabled && type == .flagsChanged {
+            let keyCode = event.keyCode
+            
+            // Check if this is the configured pause key
+            if keyCode == pauseKeyCode {
+                // Determine if key is being pressed or released by checking flags
+                let flags = event.flags
+                let isPauseKeyPressed: Bool
+                
+                if pauseKeyCode == 58 {  // Option key
+                    isPauseKeyPressed = flags.contains(.maskAlternate)
+                } else if pauseKeyCode == 59 {  // Control key
+                    isPauseKeyPressed = flags.contains(.maskControl)
+                } else {
+                    isPauseKeyPressed = false
+                }
+                
+                if isPauseKeyPressed && !pauseKeyState.isHolding {
+                    // Pause key pressed - switch to English temporarily
+                    pauseKeyState.isHolding = true
+                    pauseKeyState.lastKeyCode = keyCode
+                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
+                    debugLogCallback?("⏸️ Pause key (\(keyName)) pressed - temporarily switching to English")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onPauseKeyDown?()
+                    }
+                } else if !isPauseKeyPressed && pauseKeyState.isHolding {
+                    // Pause key released - restore previous mode
+                    pauseKeyState.isHolding = false
+                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
+                    debugLogCallback?("▶️ Pause key (\(keyName)) released - restoring Vietnamese")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onPauseKeyUp?()
+                    }
+                }
+            }
+        }
+
         // Check for toggle hotkey FIRST (before delegate processing)
         // This ensures the hotkey is consumed and doesn't reach other apps
+        // Skip hotkey processing if we're in recording mode (user is setting a new hotkey)
+        guard !isRecordingHotkey else {
+            // In recording mode, pass all events through without processing hotkeys
+            if let processedEvent = delegate?.processKeyEvent(event, type: type, proxy: proxy) {
+                return Unmanaged.passUnretained(processedEvent)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+        
         if let hotkey = toggleHotkey {
             // Handle modifier-only hotkey (e.g., Ctrl+Shift)
             if hotkey.isModifierOnly {
@@ -266,6 +339,30 @@ class ZKEventTapManager {
                         return nil
                     }
                 }
+            }
+        }
+        
+        // Check for input method hotkey
+        if let hotkey = inputMethodHotkey, type == .keyDown {
+            let eventModifiers = ModifierFlags(from: event.flags)
+            if event.keyCode == hotkey.keyCode && eventModifiers == hotkey.modifiers {
+                debugLogCallback?("  → INPUT METHOD HOTKEY DETECTED - consuming event")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onInputMethodHotkey?()
+                }
+                return nil
+            }
+        }
+        
+        // Check for code table hotkey
+        if let hotkey = codeTableHotkey, type == .keyDown {
+            let eventModifiers = ModifierFlags(from: event.flags)
+            if event.keyCode == hotkey.keyCode && eventModifiers == hotkey.modifiers {
+                debugLogCallback?("  → CODE TABLE HOTKEY DETECTED - consuming event")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onCodeTableHotkey?()
+                }
+                return nil
             }
         }
         

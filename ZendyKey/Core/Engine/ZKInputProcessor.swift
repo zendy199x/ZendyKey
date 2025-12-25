@@ -43,6 +43,8 @@ class ZKInputProcessor {
             return processVNIKey(lowerChar, isUppercase: isUppercase)
         case .simpleTelex1, .simpleTelex2:
             return processSimpleTeleZendyKey(lowerChar, isUppercase: isUppercase)
+        case .viqr:
+            return processVIQRKey(lowerChar, isUppercase: isUppercase)
         }
     }
     
@@ -153,6 +155,63 @@ class ZKInputProcessor {
         return processTeleZendyKey(char, isUppercase: isUppercase)
     }
     
+    // MARK: - VIQR Processing
+    
+    private func processVIQRKey(_ char: Character, isUppercase: Bool) -> KeyAction {
+        switch char {
+        // Vowels
+        case "a": return .appendVowel(.a)
+        case "e": return .appendVowel(.e)
+        case "i": return .appendVowel(.i)
+        case "o": return .appendVowel(.o)
+        case "u": return .appendVowel(.u)
+        case "y": return .appendVowel(.y)
+            
+        // Circumflex (^) - a^ → â, e^ → ê, o^ → ô
+        case "^": return .addCircumflex
+            
+        // Breve - a( → ă
+        case "(": return .addBreve
+            
+        // Horn - o+ → ơ, u+ → ư
+        case "+": return .addHorn
+            
+        // Tones using punctuation
+        case "'": return .addTone(.acute)      // Sắc: a' → á
+        case "`": return .addTone(.grave)      // Huyền: a` → à
+        case "?": return .addTone(.hookAbove)  // Hỏi: a? → ả
+        case "~": return .addTone(.tilde)      // Ngã: a~ → ã
+        case ".": return .addTone(.dotBelow)   // Nặng: a. → ạ
+            
+        // Double d for đ
+        case "d": return .doubleLetter("d")    // dd → đ
+            
+        // Consonants
+        case "b": return .appendConsonant(.b)
+        case "c": return .appendConsonant(.c)
+        case "g": return .appendConsonant(.g)
+        case "h": return .appendConsonant(.h)
+        case "k": return .appendConsonant(.k)
+        case "l": return .appendConsonant(.l)
+        case "m": return .appendConsonant(.m)
+        case "n": return .appendConsonant(.n)
+        case "p": return .appendConsonant(.p)
+        case "q": return .appendConsonant(.q)
+        case "r": return .appendConsonant(.r)
+        case "s": return .appendConsonant(.s)
+        case "t": return .appendConsonant(.t)
+        case "v": return .appendConsonant(.v)
+        case "x": return .appendConsonant(.x)
+            
+        // Word breaks
+        case " ", ",", "!", ";", ":":
+            return .wordBreak
+            
+        default:
+            return .normal(char)
+        }
+    }
+    
     // MARK: - Helper Methods
     
     func isVowelKey(_ char: Character) -> Bool {
@@ -174,6 +233,8 @@ class ZKInputProcessor {
             return ["s", "f", "r", "x", "j"].contains(char.lowercased().first ?? char)
         case .vni:
             return ["1", "2", "3", "4", "5"].contains(char)
+        case .viqr:
+            return ["'", "`", "?", "~", "."].contains(char)
         }
     }
     
@@ -183,6 +244,8 @@ class ZKInputProcessor {
             return char.lowercased().first == "w" || char == "^"
         case .vni:
             return ["6", "7", "8", "9"].contains(char)
+        case .viqr:
+            return char == "^" || char == "(" || char == "+"
         }
     }
     

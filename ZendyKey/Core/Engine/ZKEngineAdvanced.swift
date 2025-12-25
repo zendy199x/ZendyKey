@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Advanced features implementation for ZKEngine
-//  Ported from OpenKey Engine.cpp
 //
 
 import Foundation

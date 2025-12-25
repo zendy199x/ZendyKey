@@ -1,58 +1,107 @@
 # Contributing to ZendyKey
 
-Thank you for considering contributing to ZendyKey! This document provides guidelines for contributing.
+Cảm ơn bạn đã quan tâm đến việc đóng góp cho ZendyKey!
 
-## How to Contribute
+---
 
-### Reporting Bugs
-
-1. Check if the bug has already been reported in [Issues](https://github.com/zendy199x/ZendyKey/issues)
-2. If not, create a new issue with:
-   - Clear title describing the bug
-   - macOS version
-   - ZendyKey version
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Screenshots if applicable
-
-### Suggesting Features
-
-1. Check existing [Issues](https://github.com/zendy199x/ZendyKey/issues) and [Discussions](https://github.com/zendy199x/ZendyKey/discussions)
-2. Create a new issue with:
-   - Clear description of the feature
-   - Use case / why it's useful
-   - Any implementation ideas
-
-### Pull Requests
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes
-4. Test thoroughly on macOS 10.15+
-5. Commit with clear messages
-6. Push and create a Pull Request
-
-## Development Setup
+## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/your-username/ZendyKey.git
-cd ZendyKey
-./build_release.sh
+# Clone and setup
+git clone https://github.com/zendy199x/ZendyKey
+cd zendy-key
+make setup
+
+# Build and test
+make build
+make test
 ```
 
-## Code Style
+---
 
-- Follow Swift style guidelines
-- Use descriptive variable names
-- Add comments for complex logic
-- All components use `ZK` prefix
+## 🐛 Báo lỗi / Bug Reports
 
-## Testing
+1. Kiểm tra [Issues](https://github.com/zendy199x/ZendyKey/issues) hiện có
+2. Tạo issue mới với thông tin:
+   - macOS version
+   - ZendyKey version  
+   - Input method (Telex/VNI/VIQR)
+   - Steps to reproduce
 
-- Run unit tests before submitting PRs
-- Test on multiple macOS versions if possible
-- Test all input methods (Telex, VNI, VIQR)
+---
 
-## Questions?
+## ✨ Đề xuất tính năng
 
-Open a [Discussion](https://github.com/zendy199x/ZendyKey/discussions) for any questions.
+1. Kiểm tra [Issues](https://github.com/zendy199x/ZendyKey/issues)
+2. Mô tả rõ:
+   - Tính năng mong muốn
+   - Use case
+   - Giải pháp thay thế (nếu có)
+
+---
+
+## 🔧 Pull Requests
+
+### Workflow
+
+1. **Fork** repository
+2. **Clone**: `git clone https://github.com/YOUR-USERNAME/ZendyKey`
+3. **Branch**: `git checkout -b feat/your-feature`
+4. **Code**: Make changes
+5. **Test**: `make test`
+6. **Lint**: `make lint`
+7. **Commit**: Follow conventional commits
+8. **Push**: `git push origin feat/your-feature`
+9. **PR**: Create Pull Request
+
+### Commit Messages
+
+```
+feat: add new feature
+fix: fix bug
+docs: update documentation
+test: add tests
+refactor: refactor code
+```
+
+### PR Checklist
+
+- [ ] Tests pass (`make test`)
+- [ ] Code linted (`make lint`)
+- [ ] Documentation updated (if needed)
+- [ ] Tested on macOS 12+
+
+---
+
+## 📁 Project Structure
+
+```
+ZendyKey/
+├── Core/Engine/     # Vietnamese engine
+├── EventHandling/   # Keyboard hook
+├── UI/              # SwiftUI views
+└── Utilities/       # Helpers
+```
+
+---
+
+## 🎨 Code Style
+
+- **Prefix**: All classes use `ZK` prefix
+- **Naming**: camelCase for vars, PascalCase for types
+- **Format**: Xcode default auto-format
+- **Lint**: SwiftLint
+
+---
+
+## 📚 Documentation
+
+- [Engine Algorithm](docs/engine-algorithm.md)
+- [Architecture](docs/architecture.md)
+- [Development Guide](docs/development.md)
+
+---
+
+## ❓ Questions?
+
+Open a [Discussion](https://github.com/zendy199x/ZendyKey/discussions)!

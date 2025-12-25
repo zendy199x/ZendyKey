@@ -16,6 +16,7 @@ extension ZKEngine {
         var codeTable: CodeTable = .unicode
         var modernStyle: Bool = true
         var spellCheckEnabled: Bool = true
+        var grammarCheckEnabled: Bool = true
         var fixAutocomplete: Bool = true
         var freeMarking: Bool = false
         
@@ -50,6 +51,8 @@ extension ZKEngine {
             vInputType = 2
         case .simpleTelex2:
             vInputType = 3
+        case .viqr:
+            vInputType = 4
         }
         
         // Map CodeTable to vCodeTable
@@ -58,6 +61,7 @@ extension ZKEngine {
         // Basic settings
         vUseModernOrthography = settings.modernStyle ? 1 : 0
         vCheckSpelling = settings.spellCheckEnabled ? 1 : 0
+        vGrammarCheck = settings.grammarCheckEnabled ? 1 : 0
         vFixRecommendBrowser = settings.fixAutocomplete ? 1 : 0
         
         // Advanced features
@@ -94,6 +98,8 @@ extension ZKEngine {
             settings.inputMethod = .simpleTelex1
         case 3:
             settings.inputMethod = .simpleTelex2
+        case 4:
+            settings.inputMethod = .viqr
         default:
             settings.inputMethod = .telex
         }
@@ -104,6 +110,7 @@ extension ZKEngine {
         // Basic settings
         settings.modernStyle = vUseModernOrthography == 1
         settings.spellCheckEnabled = vCheckSpelling == 1
+        settings.grammarCheckEnabled = vGrammarCheck == 1
         settings.fixAutocomplete = vFixRecommendBrowser == 1
         
         // Advanced features

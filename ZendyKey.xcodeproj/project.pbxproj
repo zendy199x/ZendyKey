@@ -7,7 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */; };
 		1097C5E52EF6662500969052 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1097C5E42EF6662500969052 /* Sparkle */; };
+		1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */; };
+		40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */; };
+		4249A903A40EDC570C38FB55 /* ZKWelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = F515913893AC85EBBA2C18FE /* ZKWelcomeStep.swift */; };
+		52817B15CE79AAC1C3BAAACF /* ZKInputSourceObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */; };
+		68CA5F55F8F5F60438FBB17C /* ZKOnScreenIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */; };
+		6B67BE96ECA15ED1BE1E9A4D /* ZKPermissionStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F0601694C1546817BFEB37 /* ZKPermissionStep.swift */; };
+		9F7283F34B683E0C1FCF5E93 /* ZKUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */; };
 		A1000001 /* ZendyKeyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* ZendyKeyApp.swift */; };
 		A1000002 /* ZKAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* ZKAppDelegate.swift */; };
 		A1000003 /* ZKCharacter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000003 /* ZKCharacter.swift */; };
@@ -56,10 +64,30 @@
 		A100002F /* ZKAppBehaviorDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200002F /* ZKAppBehaviorDetector.swift */; };
 		A1000030 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000030 /* Assets.xcassets */; };
 		A1000031 /* ZKDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000031 /* ZKDesignSystem.swift */; };
-		A1000032 /* ZKStatusBarPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000032 /* ZKStatusBarPopoverView.swift */; };
+		A1000034 /* ZKMenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000034 /* ZKMenuBarPopover.swift */; };
+		A1000033 /* ZKPerAppCodeTableManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000033 /* ZKPerAppCodeTableManager.swift */; };
+		C2A8B17D6D14167F9597E9C7 /* ZKInputMethodStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A836C2F5BF8DCED14171C /* ZKInputMethodStep.swift */; };
+		C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */; };
+		CE3042D346743FB443925910 /* ZKOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E104819E54E78601A55B5263 /* ZKOnboardingView.swift */; };
+		E1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */; };
+		E2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */; };
+		E3456789012CDEF012345678 /* ZKStatisticsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3456789012CDEF012345678 /* ZKStatisticsManager.swift */; };
+		E4567890123DEF0123456789 /* ZKStatisticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4567890123DEF0123456789 /* ZKStatisticsSection.swift */; };
+		E5678901234EF01234567890 /* ZKActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5678901234EF01234567890 /* ZKActionButton.swift */; };
+		E6789012345F012345678901 /* ZKSegmentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6789012345F012345678901 /* ZKSegmentPicker.swift */; };
+		EA123456789F012345678901 /* ZKGridPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA123456789F012345678901 /* ZKGridPicker.swift */; };
+		E7890123456F0123456789012 /* ZKRadioGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7890123456F0123456789012 /* ZKRadioGroup.swift */; };
+		E8901234567F01234567890123 /* ZKSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8901234567F01234567890123 /* ZKSection.swift */; };
+		E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9012345678F012345678901234 /* ZKSwitchButton.swift */; };
+		EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB345678901F01234567890123456 /* ZKToggleRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00F0601694C1546817BFEB37 /* ZKPermissionStep.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKPermissionStep.swift; sourceTree = "<group>"; };
+		18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKMenuBarHeaderView.swift; sourceTree = "<group>"; };
+		4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKUpdateBadgeView.swift; sourceTree = "<group>"; };
+		510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKUIComponents.swift; sourceTree = "<group>"; };
+		91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSoundManager.swift; sourceTree = "<group>"; };
 		A0000001 /* ZendyKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZendyKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000001 /* ZendyKeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZendyKeyApp.swift; sourceTree = "<group>"; };
 		A2000002 /* ZKAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKAppDelegate.swift; sourceTree = "<group>"; };
@@ -109,10 +137,28 @@
 		A200002F /* ZKAppBehaviorDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKAppBehaviorDetector.swift; sourceTree = "<group>"; };
 		A2000030 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000031 /* ZKDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKDesignSystem.swift; sourceTree = "<group>"; };
-		A2000032 /* ZKStatusBarPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKStatusBarPopoverView.swift; sourceTree = "<group>"; };
+		A2000034 /* ZKMenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKMenuBarPopover.swift; sourceTree = "<group>"; };
+		A2000033 /* ZKPerAppCodeTableManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKPerAppCodeTableManager.swift; sourceTree = "<group>"; };
 		A3000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A3000002 /* ZendyKey.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZendyKey.entitlements; sourceTree = "<group>"; };
 		A3000003 /* ZendyKeyRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZendyKeyRelease.entitlements; sourceTree = "<group>"; };
+		B26A836C2F5BF8DCED14171C /* ZKInputMethodStep.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKInputMethodStep.swift; sourceTree = "<group>"; };
+		B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKTextInjector.swift; sourceTree = "<group>"; };
+		C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKInputSourceObserver.swift; sourceTree = "<group>"; };
+		D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKOnScreenIndicator.swift; sourceTree = "<group>"; };
+		E104819E54E78601A55B5263 /* ZKOnboardingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKOnboardingView.swift; sourceTree = "<group>"; };
+		F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKHotkeyComponents.swift; sourceTree = "<group>"; };
+		F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSendKeyStepByStepAppsView.swift; sourceTree = "<group>"; };
+		F3456789012CDEF012345678 /* ZKStatisticsManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKStatisticsManager.swift; sourceTree = "<group>"; };
+		F4567890123DEF0123456789 /* ZKStatisticsSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKStatisticsSection.swift; sourceTree = "<group>"; };
+		F515913893AC85EBBA2C18FE /* ZKWelcomeStep.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKWelcomeStep.swift; sourceTree = "<group>"; };
+		F5678901234EF01234567890 /* ZKActionButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKActionButton.swift; sourceTree = "<group>"; };
+		F6789012345F012345678901 /* ZKSegmentPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSegmentPicker.swift; sourceTree = "<group>"; };
+		FA123456789F012345678901 /* ZKGridPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKGridPicker.swift; sourceTree = "<group>"; };
+		F7890123456F0123456789012 /* ZKRadioGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKRadioGroup.swift; sourceTree = "<group>"; };
+		F8901234567F01234567890123 /* ZKSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSection.swift; sourceTree = "<group>"; };
+		F9012345678F012345678901234 /* ZKSwitchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSwitchButton.swift; sourceTree = "<group>"; };
+		FB345678901F01234567890123456 /* ZKToggleRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKToggleRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +231,7 @@
 				A200000A /* ZKCharacterInjector.swift */,
 				A200000B /* ZKKeyboardEventHandler.swift */,
 				A200001B /* ZKKeyCodeToCharacter.swift */,
+				B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */,
 			);
 			path = EventHandling;
 			sourceTree = "<group>";
@@ -193,23 +240,29 @@
 			isa = PBXGroup;
 			children = (
 				A5000032 /* Design */,
+				A9D5FF796EC3754192CAF080 /* MenuBar */,
 				A2000027 /* ZKDonationView.swift */,
 				A2000011 /* ZKHotkeyRecorderView.swift */,
 				A2000012 /* ZKPreferencesWindowController.swift */,
 				A200000E /* ZKDebugWindowController.swift */,
-				A200000D /* ZKStatusBarManager.swift */,
 				A200000F /* ZKPreferencesView.swift */,
 				A2000010 /* ZKPreferencesViewModel.swift */,
 				A200001C /* ZKSettingsView.swift */,
 				A200001D /* ZKSettingsWindowController.swift */,
-				A2000020 /* ZKStatusBarViewModel.swift */,
 				A2000021 /* ZKDebugViewModel.swift */,
 				A2000022 /* ZKDebugView.swift */,
 				A2000023 /* ZKMacroManagementViewModel.swift */,
 				A2000024 /* ZKConvertToolViewModel.swift */,
 				A2000025 /* ZKExcludedAppsView.swift */,
 				A2000026 /* ZKWindowTitleRulesView.swift */,
-				A2000032 /* ZKStatusBarPopoverView.swift */,
+				D0A7495CAEE0FAE5BBEC4462 /* ZKOnScreenIndicator.swift */,
+				4266CA40D0CBAE19131A1111 /* ZKUpdateBadgeView.swift */,
+				510CEDC1668FE855AF5EC1EB /* ZKUIComponents.swift */,
+				F1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift */,
+				F2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift */,
+				F4567890123DEF0123456789 /* ZKStatisticsSection.swift */,
+				A9D5FF796EC3754192CAF016 /* Onboarding */,
+				A9D5FF796EC3754192CAF017 /* Components */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -224,6 +277,8 @@
 				A200002C /* ZKIMKitHelper.swift */,
 				A200001F /* ZKLaunchAtLogin.swift */,
 				A200001E /* ZKAppVersion.swift */,
+				91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */,
+				C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -235,6 +290,8 @@
 				A2000004 /* ZKCharacterMap.swift */,
 				A2000005 /* ZKVowelSequenceValidator.swift */,
 				A200000C /* ZKPreferences.swift */,
+				A2000033 /* ZKPerAppCodeTableManager.swift */,
+				F3456789012CDEF012345678 /* ZKStatisticsManager.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -274,6 +331,42 @@
 			path = Design;
 			sourceTree = "<group>";
 		};
+		A9D5FF796EC3754192CAF016 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				E104819E54E78601A55B5263 /* ZKOnboardingView.swift */,
+				F515913893AC85EBBA2C18FE /* ZKWelcomeStep.swift */,
+				00F0601694C1546817BFEB37 /* ZKPermissionStep.swift */,
+				B26A836C2F5BF8DCED14171C /* ZKInputMethodStep.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		A9D5FF796EC3754192CAF017 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				F5678901234EF01234567890 /* ZKActionButton.swift */,
+				F6789012345F012345678901 /* ZKSegmentPicker.swift */,
+				FA123456789F012345678901 /* ZKGridPicker.swift */,
+				F7890123456F0123456789012 /* ZKRadioGroup.swift */,
+				F8901234567F01234567890123 /* ZKSection.swift */,
+				F9012345678F012345678901234 /* ZKSwitchButton.swift */,
+				FB345678901F01234567890123456 /* ZKToggleRow.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		A9D5FF796EC3754192CAF080 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				A200000D /* ZKStatusBarManager.swift */,
+				A2000034 /* ZKMenuBarPopover.swift */,
+				A2000020 /* ZKStatusBarViewModel.swift */,
+				18F42751B62C497F0A341F4C /* ZKMenuBarHeaderView.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -305,7 +398,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					A6000001 = {
 						CreatedOnToolsVersion = 15.0;
@@ -376,6 +469,7 @@
 				A100000A /* ZKCharacterInjector.swift in Sources */,
 				A100000B /* ZKKeyboardEventHandler.swift in Sources */,
 				A100000C /* ZKPreferences.swift in Sources */,
+				A1000033 /* ZKPerAppCodeTableManager.swift in Sources */,
 				A1000017 /* ZKEngineSettings.swift in Sources */,
 				A1000018 /* ZKEngineAdvanced.swift in Sources */,
 				A1000028 /* ZKDebugLogger.swift in Sources */,
@@ -397,7 +491,29 @@
 				A100001B /* ZKKeyCodeToCharacter.swift in Sources */,
 				A1000026 /* ZKWindowTitleRulesView.swift in Sources */,
 				A1000031 /* ZKDesignSystem.swift in Sources */,
-				A1000032 /* ZKStatusBarPopoverView.swift in Sources */,
+				A1000034 /* ZKMenuBarPopover.swift in Sources */,
+				68CA5F55F8F5F60438FBB17C /* ZKOnScreenIndicator.swift in Sources */,
+				0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */,
+				40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */,
+				52817B15CE79AAC1C3BAAACF /* ZKInputSourceObserver.swift in Sources */,
+				9F7283F34B683E0C1FCF5E93 /* ZKUIComponents.swift in Sources */,
+				1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */,
+				C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */,
+				E1234567890ABCDEF0123456 /* ZKHotkeyComponents.swift in Sources */,
+				E2345678901BCDEF01234567 /* ZKSendKeyStepByStepAppsView.swift in Sources */,
+				E3456789012CDEF012345678 /* ZKStatisticsManager.swift in Sources */,
+				E4567890123DEF0123456789 /* ZKStatisticsSection.swift in Sources */,
+				CE3042D346743FB443925910 /* ZKOnboardingView.swift in Sources */,
+				4249A903A40EDC570C38FB55 /* ZKWelcomeStep.swift in Sources */,
+				6B67BE96ECA15ED1BE1E9A4D /* ZKPermissionStep.swift in Sources */,
+				C2A8B17D6D14167F9597E9C7 /* ZKInputMethodStep.swift in Sources */,
+				E5678901234EF01234567890 /* ZKActionButton.swift in Sources */,
+				E6789012345F012345678901 /* ZKSegmentPicker.swift in Sources */,
+				EA123456789F012345678901 /* ZKGridPicker.swift in Sources */,
+				E7890123456F0123456789012 /* ZKRadioGroup.swift in Sources */,
+				E8901234567F01234567890123 /* ZKSection.swift in Sources */,
+				E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */,
+				EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -409,6 +525,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -440,6 +557,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = S9J52UCT4R;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -463,6 +581,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -473,6 +592,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -504,6 +624,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = S9J52UCT4R;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -520,6 +641,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -535,9 +657,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = S9J52UCT4R;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ZendyKey/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "ZendyKey Debug";
@@ -569,9 +693,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = S9J52UCT4R;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ZendyKey/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
