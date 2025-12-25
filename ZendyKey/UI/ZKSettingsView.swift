@@ -346,109 +346,14 @@ struct HotkeysSettingsSection: View {
                     }
                 }
                 
-                // Pause Vietnamese temporarily
-                ZKSection("Phím tạm dừng gõ tiếng Việt") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ZKToggleRow(
-                            icon: "pause.fill",
-                            title: "Bật tính năng tạm dừng",
-                            subtitle: "Giữ phím để tạm thời gõ tiếng Anh"
-                        ) {
-                            Toggle("", isOn: $viewModel.preferences.pauseKeyEnabled)
-                                .toggleStyle(ZKToggleStyle())
-                                .labelsHidden()
-                        }
-                        
-                        if viewModel.preferences.pauseKeyEnabled {
-                            Divider()
-                            
-                            // Key Selection
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Chọn phím tạm dừng")
-                                    .font(ZKTypography.caption.bold())
-                                    .foregroundColor(ZKColors.textPrimary)
-                                
-                                HStack(spacing: 12) {
-                                    ZKPauseKeyButton(
-                                        symbol: "⌃",
-                                        name: "Control",
-                                        keyCode: 59,
-                                        selectedKeyCode: $viewModel.preferences.pauseKey,
-                                        selectedKeyName: $viewModel.preferences.pauseKeyName
-                                    )
-                                    ZKPauseKeyButton(
-                                        symbol: "⌥",
-                                        name: "Option",
-                                        keyCode: 58,
-                                        selectedKeyCode: $viewModel.preferences.pauseKey,
-                                        selectedKeyName: $viewModel.preferences.pauseKeyName
-                                    )
-                                }
-                                
-                                Text("Mặc định: Option. Ví dụ: giữ ⌥ gõ \"email\" → thả ⌥")
-                                    .font(ZKTypography.caption)
-                                    .foregroundColor(ZKColors.textTertiary)
-                            }
-                            
-                            // Conflict warning
-                            if viewModel.preferences.pauseKeyEnabled && viewModel.preferences.restoreOnEscape &&
-                               viewModel.preferences.pauseKey == viewModel.preferences.restoreKey.rawValue {
-                                ZKConflictWarningView(message: "Phím tạm dừng trùng với phím khôi phục")
-                            }
-                        }
-                    }
-                }
+                // 1. Restore to original (without tones) - FIRST
+                ZKRestoreKeyConfigSection(viewModel: viewModel)
                 
-                // Restore to original (without tones)
-                ZKSection("Phím khôi phục nguyên gốc") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ZKToggleRow(
-                            icon: "arrow.counterclockwise",
-                            title: "Bật khôi phục nguyên gốc",
-                            subtitle: "Khôi phục từ về dạng chưa bỏ dấu"
-                        ) {
-                            Toggle("", isOn: $viewModel.preferences.restoreOnEscape)
-                                .toggleStyle(ZKToggleStyle())
-                                .labelsHidden()
-                        }
-                        
-                        if viewModel.preferences.restoreOnEscape {
-                            Divider()
-                            
-                            // Key Selection
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Chọn phím khôi phục")
-                                    .font(ZKTypography.caption.bold())
-                                    .foregroundColor(ZKColors.textPrimary)
-                                
-                                HStack(spacing: 12) {
-                                    ZKRestoreKeyButton(
-                                        symbol: "⎋",
-                                        name: "ESC",
-                                        restoreKey: .esc,
-                                        selectedKey: $viewModel.preferences.restoreKey
-                                    )
-                                    ZKRestoreKeyButton(
-                                        symbol: "⌥",
-                                        name: "Option",
-                                        restoreKey: .option,
-                                        selectedKey: $viewModel.preferences.restoreKey
-                                    )
-                                    ZKRestoreKeyButton(
-                                        symbol: "⌃",
-                                        name: "Control",
-                                        restoreKey: .control,
-                                        selectedKey: $viewModel.preferences.restoreKey
-                                    )
-                                }
-                                
-                                Text("Mặc định: ESC. Ví dụ: \"việt\" → ESC → \"vieejt\"")
-                                    .font(ZKTypography.caption)
-                                    .foregroundColor(ZKColors.textTertiary)
-                            }
-                        }
-                    }
-                }
+                // 2. Pause Vietnamese temporarily (renamed to Tạm tắt) - SECOND  
+                ZKPauseKeyConfigSection(viewModel: viewModel)
+                
+                // 3. Temp Off Spelling - THIRD
+                ZKTempOffSpellingConfigSection(viewModel: viewModel)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -1172,26 +1077,6 @@ struct AdvancedSettingsSection: View {
                         Text("Tự động nhớ Việt/Anh cho từng ứng dụng")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-                }
-                
-                ZKSection( "Tạm tắt") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Tạm tắt chính tả bằng phím Ctrl", isOn: $viewModel.preferences.tempOffSpellingEnabled)
-                            
-                            Text("Giữ Ctrl khi gõ để tạm thời tắt kiểm tra chính tả")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Tạm tắt gõ tiếng Việt bằng phím Option", isOn: $viewModel.preferences.tempOffEngineEnabled)
-                            
-                            Text("Giữ Option (⌥) khi gõ để tạm thời tắt bộ gõ")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
                     }
                 }
                 

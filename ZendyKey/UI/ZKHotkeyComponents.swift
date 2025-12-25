@@ -174,19 +174,33 @@ struct ZKRestoreKeyButton: View {
     }
 }
 
-// MARK: - Pause Key Configuration Section
+// MARK: - Pause Key Configuration Section (Tạm tắt gõ tiếng Việt)
 
 struct ZKPauseKeyConfigSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
 
-    // Check for conflict with restore key
-    private var hasPauseRestoreConflict: Bool {
-        guard viewModel.preferences.pauseKeyEnabled && viewModel.preferences.restoreOnEscape else { return false }
-        return viewModel.preferences.pauseKey == viewModel.preferences.restoreKey.rawValue
+    // Get list of conflicting sections for display
+    private var conflictingSections: [String] {
+        guard viewModel.preferences.pauseKeyEnabled else { return [] }
+        var conflicts: [String] = []
+        
+        // Check conflict with restore key
+        if viewModel.preferences.restoreOnEscape && 
+           viewModel.preferences.pauseKey == viewModel.preferences.restoreKey.rawValue {
+            conflicts.append("Phím khôi phục nguyên gốc")
+        }
+        
+        // Check conflict with temp off spelling
+        if viewModel.preferences.tempOffSpellingEnabled && 
+           viewModel.preferences.pauseKey == viewModel.preferences.tempOffSpellingKey {
+            conflicts.append("Phím tạm tắt chính tả")
+        }
+        
+        return conflicts
     }
 
     var body: some View {
-        ZKSection( "Tạm dừng gõ tiếng Việt") {
+        ZKSection("Phím tạm tắt gõ tiếng Việt") {
             VStack(alignment: .leading, spacing: 16) {
                 // Enable toggle with icon
                 HStack(spacing: 14) {
@@ -201,28 +215,29 @@ struct ZKPauseKeyConfigSection: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Bật tính năng tạm dừng")
+                        Text("Bật tính năng tạm tắt")
                             .font(ZKTypography.body)
                             .foregroundColor(ZKColors.textPrimary)
 
-                        Text("Nhấn giữ phím để tạm thời chuyển sang tiếng Anh")
+                        Text("Giữ phím để tạm thời gõ tiếng Anh")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textSecondary)
                     }
 
                     Spacer()
 
-                    Toggle("", isOn: $viewModel.preferences.pauseKeyEnabled)
+                    Toggle("", isOn: $viewModel.preferences.pauseKeyEnabled.animation(ZKAnimations.spring))
                         .labelsHidden()
-                        .toggleStyle(.switch)
+                        .toggleStyle(ZKToggleStyle())
                 }
 
                 if viewModel.preferences.pauseKeyEnabled {
                     Divider()
+                        .padding(.top, 4)
 
                     // Key Selection
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Chọn phím tạm dừng")
+                        Text("Chọn phím tạm tắt")
                             .font(ZKTypography.caption.bold())
                             .foregroundColor(ZKColors.textPrimary)
 
@@ -241,19 +256,28 @@ struct ZKPauseKeyConfigSection: View {
                                 selectedKeyCode: $viewModel.preferences.pauseKey,
                                 selectedKeyName: $viewModel.preferences.pauseKeyName
                             )
+                            ZKPauseKeyButton(
+                                symbol: "⌘",
+                                name: "Cmd",
+                                keyCode: 55,
+                                selectedKeyCode: $viewModel.preferences.pauseKey,
+                                selectedKeyName: $viewModel.preferences.pauseKeyName
+                            )
                         }
 
-                        Text("Mặc định: Option (⌥)")
+                        Text("Mặc định: Control (⌃). Ví dụ: giữ ⌃ gõ \"email\" → thả ⌃")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textTertiary)
                     }
+                    .transition(.opacity)
 
-                    // Conflict warning
-                    if hasPauseRestoreConflict {
-                        ZKConflictWarningView(message: "Phím tạm dừng trùng với phím khôi phục")
+                    // Comprehensive conflict warning
+                    if !conflictingSections.isEmpty {
+                        ZKConflictWarningView(message: "Phím đang trùng với: \(conflictingSections.joined(separator: ", "))")
                     }
                 }
             }
+            .animation(ZKAnimations.spring, value: viewModel.preferences.pauseKeyEnabled)
         }
     }
 }
@@ -263,8 +287,28 @@ struct ZKPauseKeyConfigSection: View {
 struct ZKRestoreKeyConfigSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
 
+    // Get list of conflicting sections for display
+    private var conflictingSections: [String] {
+        guard viewModel.preferences.restoreOnEscape else { return [] }
+        var conflicts: [String] = []
+        
+        // Check conflict with pause key (Tạm tắt gõ tiếng Việt)
+        if viewModel.preferences.pauseKeyEnabled && 
+           viewModel.preferences.restoreKey.rawValue == viewModel.preferences.pauseKey {
+            conflicts.append("Phím tạm tắt gõ tiếng Việt")
+        }
+        
+        // Check conflict with temp off spelling
+        if viewModel.preferences.tempOffSpellingEnabled && 
+           viewModel.preferences.restoreKey.rawValue == viewModel.preferences.tempOffSpellingKey {
+            conflicts.append("Phím tạm tắt chính tả")
+        }
+        
+        return conflicts
+    }
+
     var body: some View {
-        ZKSection( "Khôi phục nguyên gốc") {
+        ZKSection("Phím khôi phục nguyên gốc") {
             VStack(alignment: .leading, spacing: 16) {
                 // Enable toggle
                 HStack(spacing: 14) {
@@ -290,13 +334,14 @@ struct ZKRestoreKeyConfigSection: View {
 
                     Spacer()
 
-                    Toggle("", isOn: $viewModel.preferences.restoreOnEscape)
+                    Toggle("", isOn: $viewModel.preferences.restoreOnEscape.animation(ZKAnimations.spring))
                         .labelsHidden()
-                        .toggleStyle(.switch)
+                        .toggleStyle(ZKToggleStyle())
                 }
 
                 if viewModel.preferences.restoreOnEscape {
                     Divider()
+                        .padding(.top, 4)
 
                     // Key Selection
                     VStack(alignment: .leading, spacing: 12) {
@@ -325,12 +370,19 @@ struct ZKRestoreKeyConfigSection: View {
                             )
                         }
 
-                        Text("Mặc định: ESC (⎋)")
+                        Text("Mặc định: ESC (⎋). Ví dụ: \"việt\" → ⎋ → \"vieejt\"")
                             .font(ZKTypography.caption)
                             .foregroundColor(ZKColors.textTertiary)
                     }
+                    .transition(.opacity)
+
+                    // Comprehensive conflict warning
+                    if !conflictingSections.isEmpty {
+                        ZKConflictWarningView(message: "Phím đang trùng với: \(conflictingSections.joined(separator: ", "))")
+                    }
                 }
             }
+            .animation(ZKAnimations.spring, value: viewModel.preferences.restoreOnEscape)
         }
     }
 }
@@ -364,3 +416,165 @@ struct ZKConflictWarningView: View {
         .transition(.scale.combined(with: .opacity))
     }
 }
+
+// MARK: - Temp Off Spelling Key Button (Radio Style)
+
+/// A styled radio button for temp off spelling key selection
+struct ZKTempOffSpellingKeyButton: View {
+    let symbol: String
+    let name: String
+    let keyCode: UInt16
+    @Binding var selectedKeyCode: UInt16
+    
+    @State private var isHovered = false
+
+    private var isSelected: Bool {
+        selectedKeyCode == keyCode
+    }
+
+    var body: some View {
+        Button(action: {
+            withAnimation(ZKAnimations.spring) {
+                selectedKeyCode = keyCode
+            }
+        }) {
+            VStack(spacing: 6) {
+                Text(symbol)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : ZKColors.textPrimary)
+
+                Text(name)
+                    .font(.caption2)
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : ZKColors.textSecondary)
+            }
+            .frame(width: 70, height: 56)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(ZKColors.accentGradient)
+                        .shadow(color: ZKColors.accent.opacity(0.3), radius: 4, x: 0, y: 2)
+                } else {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(ZKColors.glassBackground)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? Color.clear : ZKColors.glassBorder, lineWidth: 1)
+            )
+            .scaleEffect(isHovered ? 1.02 : (isSelected ? 1.0 : 0.98))
+        }
+        .buttonStyle(.plain)
+        .animation(ZKAnimations.spring, value: isSelected)
+        .animation(ZKAnimations.springFast, value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+// MARK: - Temp Off Spelling Configuration Section
+
+struct ZKTempOffSpellingConfigSection: View {
+    @ObservedObject var viewModel: ZKPreferencesViewModel
+
+    // Get list of conflicting sections for display
+    private var conflictingSections: [String] {
+        guard viewModel.preferences.tempOffSpellingEnabled else { return [] }
+        var conflicts: [String] = []
+        
+        // Check conflict with restore key
+        if viewModel.preferences.restoreOnEscape && 
+           viewModel.preferences.tempOffSpellingKey == viewModel.preferences.restoreKey.rawValue {
+            conflicts.append("Phím khôi phục nguyên gốc")
+        }
+        
+        // Check conflict with pause key (Tạm tắt gõ tiếng Việt)
+        if viewModel.preferences.pauseKeyEnabled && 
+           viewModel.preferences.tempOffSpellingKey == viewModel.preferences.pauseKey {
+            conflicts.append("Phím tạm tắt gõ tiếng Việt")
+        }
+        
+        return conflicts
+    }
+
+    var body: some View {
+        ZKSection("Phím tạm tắt kiểm tra chính tả") {
+            VStack(alignment: .leading, spacing: 16) {
+                // Enable toggle with icon
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(ZKColors.accent.opacity(0.12))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "textformat.abc.dottedunderline")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(ZKColors.accent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Bật tính năng tạm tắt chính tả")
+                            .font(ZKTypography.body)
+                            .foregroundColor(ZKColors.textPrimary)
+
+                        Text("Giữ phím để tạm thời tắt kiểm tra chính tả")
+                            .font(ZKTypography.caption)
+                            .foregroundColor(ZKColors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $viewModel.preferences.tempOffSpellingEnabled.animation(ZKAnimations.spring))
+                        .labelsHidden()
+                        .toggleStyle(ZKToggleStyle())
+                }
+
+                if viewModel.preferences.tempOffSpellingEnabled {
+                    Divider()
+                        .padding(.top, 4)
+
+                    // Key Selection
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Chọn phím tạm tắt chính tả")
+                            .font(ZKTypography.caption.bold())
+                            .foregroundColor(ZKColors.textPrimary)
+
+                        HStack(spacing: 12) {
+                            ZKTempOffSpellingKeyButton(
+                                symbol: "⌃",
+                                name: "Control",
+                                keyCode: 59,
+                                selectedKeyCode: $viewModel.preferences.tempOffSpellingKey
+                            )
+                            ZKTempOffSpellingKeyButton(
+                                symbol: "⌥",
+                                name: "Option",
+                                keyCode: 58,
+                                selectedKeyCode: $viewModel.preferences.tempOffSpellingKey
+                            )
+                            ZKTempOffSpellingKeyButton(
+                                symbol: "⌘",
+                                name: "Cmd",
+                                keyCode: 55,
+                                selectedKeyCode: $viewModel.preferences.tempOffSpellingKey
+                            )
+                        }
+
+                        Text("Mặc định: Option (⌥). Ví dụ: giữ ⌥ gõ \"tooi\" → không chuyển thành \"tôi\"")
+                            .font(ZKTypography.caption)
+                            .foregroundColor(ZKColors.textTertiary)
+                    }
+                    .transition(.opacity)
+
+                    // Comprehensive conflict warning
+                    if !conflictingSections.isEmpty {
+                        ZKConflictWarningView(message: "Phím đang trùng với: \(conflictingSections.joined(separator: ", "))")
+                    }
+                }
+            }
+            .animation(ZKAnimations.spring, value: viewModel.preferences.tempOffSpellingEnabled)
+        }
+    }
+}
+

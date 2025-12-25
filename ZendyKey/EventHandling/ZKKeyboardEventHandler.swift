@@ -73,7 +73,7 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         didSet { updateEngineSettings() }
     }
     
-    @Published var tempOffEngineEnabled: Bool = false {
+    @Published var tempOffSpellingKey: UInt16 = 59 {  // Default: Control key
         didSet { updateEngineSettings() }
     }
     
@@ -237,24 +237,32 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return false
         }
 
-        // Handle Ctrl key for temp off spelling
-        if event.isControlPressed && tempOffSpellingEnabled {
-            // Temporarily disable spell checking when Ctrl is pressed
-            engine.vTempOffSpelling = 1
+        // Handle temp off spelling with configurable key (Control/Option/Command)
+        if tempOffSpellingEnabled {
+            let isTempOffKeyPressed: Bool
+            switch tempOffSpellingKey {
+            case 59: // Control
+                isTempOffKeyPressed = event.isControlPressed
+            case 58: // Option
+                isTempOffKeyPressed = event.isOptionPressed
+            case 55: // Command
+                isTempOffKeyPressed = event.isCommandPressed
+            default:
+                isTempOffKeyPressed = event.isControlPressed  // Default to Control
+            }
+            
+            if isTempOffKeyPressed {
+                // Temporarily disable spell checking when temp off key is pressed
+                engine.vTempOffSpelling = 1
+            } else {
+                engine.vTempOffSpelling = 0
+            }
         } else {
             engine.vTempOffSpelling = 0
         }
 
-        // Handle Option key for temp off engine
-        if event.isOptionPressed && tempOffEngineEnabled {
-            // Temporarily disable engine when Option is pressed
-            engine.reset()
-            injector.markNewSession(preserveMidSentence: true)  // Preserve mid-sentence state
-            return false
-        }
-
-        // Don't process if Command is pressed
-        if event.isCommandPressed {
+        // Don't process if Command is pressed (unless it's the temp off key)
+        if event.isCommandPressed && tempOffSpellingKey != 55 {
             engine.reset()
             // Cmd + Arrow keys move cursor, so mark as mid-sentence
             // This prevents Forward Delete from deleting text on the right
@@ -265,15 +273,15 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return false
         }
 
-        // Don't process if Option is pressed and tempOffEngine is NOT enabled
-        if event.isOptionPressed && !tempOffEngineEnabled {
+        // Don't process if Option is pressed (unless it's the temp off key for spelling)
+        if event.isOptionPressed && !(tempOffSpellingEnabled && tempOffSpellingKey == 58) {
             engine.reset()
             injector.markNewSession(preserveMidSentence: true)  // Preserve mid-sentence state
             return false
         }
 
-        // If only Ctrl is pressed and tempOffSpelling is NOT enabled, skip processing
-        if event.isControlPressed && !tempOffSpellingEnabled {
+        // Don't process if Control is pressed (unless it's the temp off key for spelling)
+        if event.isControlPressed && !(tempOffSpellingEnabled && tempOffSpellingKey == 59) {
             engine.reset()
             injector.markNewSession(preserveMidSentence: true)  // Preserve mid-sentence state
             return false
@@ -588,7 +596,6 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         settings.allowConsonantZFWJ = allowConsonantZFWJ
         settings.freeMarking = freeMarkEnabled
         settings.tempOffSpellingEnabled = tempOffSpellingEnabled
-        settings.tempOffEngineEnabled = tempOffEngineEnabled
         
         // Macro settings
         settings.macroEnabled = macroEnabled

@@ -28,6 +28,7 @@ enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
     case esc = 53      // ESC key code
     case option = 58   // Option key code
     case control = 59  // Control key code
+    case command = 55  // Command key code
     
     var id: UInt16 { rawValue }
     
@@ -36,6 +37,7 @@ enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
         case .esc: return "ESC"
         case .option: return "Option (⌥)"
         case .control: return "Control (⌃)"
+        case .command: return "Command (⌘)"
         }
     }
     
@@ -44,6 +46,7 @@ enum RestoreKey: UInt16, Codable, CaseIterable, Identifiable {
         case .esc: return "⎋"
         case .option: return "⌥"
         case .control: return "⌃"
+        case .command: return "⌘"
         }
     }
 }
@@ -102,8 +105,8 @@ struct Preferences: Codable {
     var restoreIfWrongSpelling: Bool = true      // Restore if wrong spelling
     var allowConsonantZFWJ: Bool = false         // Allow Z, F, W, J consonants
     var freeMarkEnabled: Bool = false            // Free mark placement (đặt dấu tự do)
-    var tempOffSpellingEnabled: Bool = false     // Temp off spelling with Ctrl key
-    var tempOffEngineEnabled: Bool = false       // Temp off engine with Option key
+    var tempOffSpellingEnabled: Bool = false     // Temp off spelling with modifier key
+    var tempOffSpellingKey: UInt16 = 58          // Default: Option key (keyCode 58)
     var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
     var freeToneEnabled: Bool = false            // Free tone placement without validation
     var perAppModeEnabled: Bool = false          // Remember language mode per application
@@ -114,10 +117,10 @@ struct Preferences: Codable {
     var restoreOnEscape: Bool = true             // Enable restore to raw keys
     var restoreKey: RestoreKey = .esc            // Key to restore raw input
     
-    // Pause key configuration
+    // Pause key configuration (Tạm tắt gõ tiếng Việt)
     var pauseKeyEnabled: Bool = false            // Hold key to temporarily switch to English
-    var pauseKey: UInt16 = 58                    // Default: Option key
-    var pauseKeyName: String = "Option"          // Display name for pause key
+    var pauseKey: UInt16 = 59                    // Default: Control key
+    var pauseKeyName: String = "Control"         // Display name for pause key
     
     // Macro settings
     var macroEnabled: Bool = false               // Enable text shortcuts

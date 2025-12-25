@@ -43,7 +43,7 @@ enum ZKSharedSettingsKey: String {
     case allowConsonantZFWJ = "ZendyKey.allowConsonantZFWJ"
     case freeMarkEnabled = "ZendyKey.freeMarkEnabled"
     case tempOffSpellingEnabled = "ZendyKey.tempOffSpellingEnabled"
-    case tempOffEngineEnabled = "ZendyKey.tempOffEngineEnabled"
+    case tempOffSpellingKey = "ZendyKey.tempOffSpellingKey"
 
     // Restore key settings
     case restoreOnEscape = "ZendyKey.restoreOnEscape"
@@ -200,7 +200,7 @@ class ZKSharedSettings {
             ZKSharedSettingsKey.allowConsonantZFWJ.rawValue,
             ZKSharedSettingsKey.freeMarkEnabled.rawValue,
             ZKSharedSettingsKey.tempOffSpellingEnabled.rawValue,
-            ZKSharedSettingsKey.tempOffEngineEnabled.rawValue,
+            ZKSharedSettingsKey.tempOffSpellingKey.rawValue,
             ZKSharedSettingsKey.macroEnabled.rawValue,
             ZKSharedSettingsKey.macroInEnglishMode.rawValue,
             ZKSharedSettingsKey.autoCapsMacro.rawValue,
@@ -370,9 +370,12 @@ class ZKSharedSettings {
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.tempOffSpellingEnabled.rawValue) }
     }
 
-    var tempOffEngineEnabled: Bool {
-        get { defaults.bool(forKey: ZKSharedSettingsKey.tempOffEngineEnabled.rawValue) }
-        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.tempOffEngineEnabled.rawValue) }
+    var tempOffSpellingKey: UInt16 {
+        get {
+            let value = defaults.integer(forKey: ZKSharedSettingsKey.tempOffSpellingKey.rawValue)
+            return value > 0 ? UInt16(value) : 58  // Default to Option (58)
+        }
+        set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.tempOffSpellingKey.rawValue) }
     }
 
     // MARK: - Macro Settings
@@ -507,13 +510,13 @@ class ZKSharedSettings {
     var pauseKey: UInt16 {
         get {
             let value = defaults.integer(forKey: ZKSharedSettingsKey.pauseKey.rawValue)
-            return value > 0 ? UInt16(value) : 58  // Default to Option (58)
+            return value > 0 ? UInt16(value) : 59  // Default to Control (59)
         }
         set { defaults.set(Int(newValue), forKey: ZKSharedSettingsKey.pauseKey.rawValue) }
     }
 
     var pauseKeyName: String {
-        get { defaults.string(forKey: ZKSharedSettingsKey.pauseKeyName.rawValue) ?? "Option" }
+        get { defaults.string(forKey: ZKSharedSettingsKey.pauseKeyName.rawValue) ?? "Control" }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.pauseKeyName.rawValue) }
     }
 
@@ -812,7 +815,7 @@ class ZKSharedSettings {
         prefs.allowConsonantZFWJ = allowConsonantZFWJ
         prefs.freeMarkEnabled = freeMarkEnabled
         prefs.tempOffSpellingEnabled = tempOffSpellingEnabled
-        prefs.tempOffEngineEnabled = tempOffEngineEnabled
+        prefs.tempOffSpellingKey = tempOffSpellingKey
 
         // Restore key settings
         prefs.restoreOnEscape = restoreOnEscape
@@ -941,7 +944,7 @@ class ZKSharedSettings {
         allowConsonantZFWJ = prefs.allowConsonantZFWJ
         freeMarkEnabled = prefs.freeMarkEnabled
         tempOffSpellingEnabled = prefs.tempOffSpellingEnabled
-        tempOffEngineEnabled = prefs.tempOffEngineEnabled
+        tempOffSpellingKey = prefs.tempOffSpellingKey
 
         // Restore key settings
         restoreOnEscape = prefs.restoreOnEscape

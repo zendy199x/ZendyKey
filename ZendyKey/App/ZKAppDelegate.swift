@@ -505,7 +505,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         keyboardHandler?.allowConsonantZFWJ = preferences.allowConsonantZFWJ
         keyboardHandler?.freeMarkEnabled = preferences.freeMarkEnabled
         keyboardHandler?.tempOffSpellingEnabled = preferences.tempOffSpellingEnabled
-        keyboardHandler?.tempOffEngineEnabled = preferences.tempOffEngineEnabled
+        keyboardHandler?.tempOffSpellingKey = preferences.tempOffSpellingKey
         
         // Apply macro settings
         keyboardHandler?.macroEnabled = preferences.macroEnabled

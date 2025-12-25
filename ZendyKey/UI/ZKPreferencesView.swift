@@ -331,7 +331,6 @@ struct AdvancedTab: View {
                         Toggle("Cho phép phụ âm Z, F, W, J", isOn: $viewModel.preferences.allowConsonantZFWJ)
                         Toggle("Đặt dấu tự do (Free Mark)", isOn: $viewModel.preferences.freeMarkEnabled)
                         Toggle("Tạm tắt chính tả bằng Ctrl", isOn: $viewModel.preferences.tempOffSpellingEnabled)
-                        Toggle("Tạm tắt gõ tiếng Việt bằng Option", isOn: $viewModel.preferences.tempOffEngineEnabled)
                     }
                     .padding(.vertical, 4)
                 }
