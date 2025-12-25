@@ -205,6 +205,11 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             
             // Clear window reference (window already closed by OnboardingView)
             self?.onboardingWindow = nil
+            
+            // Open Settings window after onboarding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.openPreferences()
+            }
         }
         
         // Create onboarding window if not exists (like GoNhanh pattern)
@@ -362,17 +367,52 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
                   let debugWindow = self.debugWindowController,
                   debugWindow.isLoggingEnabled else { return }
             
-            // Log important EventTap messages (setup, errors, status changes)
+            // Log important EventTap messages (setup, errors, status changes, modifier key features)
             let shouldLog = message.contains("No delegate") ||
                            message.contains("disabled") ||
                            message.contains("🚀") ||  // Start
                            message.contains("✅") ||  // Success
                            message.contains("❌") ||  // Error
-                           message.contains("⏹️")    // Stop
+                           message.contains("⏹️") ||  // Stop
+                           message.contains("⏸️") ||  // Pause key
+                           message.contains("▶️") ||  // Resume
+                           message.contains("🔄") ||  // Restore key
+                           message.contains("🔤") ||  // Temp off spelling
+                           message.contains("ℹ️")     // Info
             
             if shouldLog {
                 debugWindow.logEvent(message)
             }
+        }
+        
+        // Setup callbacks for pause key (hold to temporarily switch to English)
+        // Use closure to capture previous state
+        var previousVietnameseState: Bool = true
+        eventTapManager?.onPauseKeyDown = { [weak self] in
+            guard let self = self else { return }
+            // Save current state before switching
+            previousVietnameseState = self.statusBarManager?.viewModel.isVietnameseEnabled ?? true
+            // Temporarily switch to English
+            self.keyboardHandler?.setVietnamese(false)
+            self.statusBarManager?.viewModel.isVietnameseEnabled = false
+        }
+        eventTapManager?.onPauseKeyUp = { [weak self] in
+            guard let self = self else { return }
+            // Restore previous state
+            self.keyboardHandler?.setVietnamese(previousVietnameseState)
+            self.statusBarManager?.viewModel.isVietnameseEnabled = previousVietnameseState
+        }
+        
+        // Setup callback for restore key (press to restore original text)
+        eventTapManager?.onRestoreKeyPressed = { [weak self] proxy in
+            guard let self = self, let handler = self.keyboardHandler else { return false }
+            return handler.performRestore(proxy: proxy)
+        }
+        
+        // Setup callback for temp off spelling (hold to temporarily disable spell check)
+        eventTapManager?.onTempOffSpellingStateChange = { [weak self] isPressed in
+            guard let self = self, let handler = self.keyboardHandler else { return }
+            handler.engine.vTempOffSpelling = isPressed ? 1 : 0
         }
 
         // Check permission BEFORE trying to start event tap
@@ -504,8 +544,6 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         keyboardHandler?.restoreIfWrongSpelling = preferences.restoreIfWrongSpelling
         keyboardHandler?.allowConsonantZFWJ = preferences.allowConsonantZFWJ
         keyboardHandler?.freeMarkEnabled = preferences.freeMarkEnabled
-        keyboardHandler?.tempOffSpellingEnabled = preferences.tempOffSpellingEnabled
-        keyboardHandler?.tempOffSpellingKey = preferences.tempOffSpellingKey
         
         // Apply macro settings
         keyboardHandler?.macroEnabled = preferences.macroEnabled
@@ -547,17 +585,33 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Update switch ZendyKey hotkey
         setupSwitchZendyKeyHotkey(with: preferences.switchToZendyKeyHotkey)
         
-        // Update restore key (ESC/Option/Control)
-        let restoreEnabled = preferences.restoreOnEscape
-        keyboardHandler?.restoreKeyEnabled = restoreEnabled
-        keyboardHandler?.restoreKeyCode = preferences.restoreKey.rawValue
-        debugWindowController?.logEvent(restoreEnabled ? "  ✅ Restore to raw keys enabled (\(preferences.restoreKey.displayName))" : "  ⏹️ Restore to raw keys disabled")
+        // MARK: - Configure EventTapManager for all 3 modifier key features
         
-        // Update pause key (hold to temporarily switch to English)
+        // 1. Restore key (ESC/Option/Control) - press to restore original text
+        let restoreEnabled = preferences.restoreOnEscape
+        eventTapManager?.restoreKeyEnabled = restoreEnabled
+        eventTapManager?.restoreKeyCode = preferences.restoreKey.rawValue
+        debugWindowController?.logEvent(restoreEnabled ? "  ✅ Restore key enabled (\(preferences.restoreKey.displayName))" : "  ⏹️ Restore key disabled")
+        
+        // 2. Pause key (Control/Option/Cmd) - hold to temporarily switch to English
         eventTapManager?.pauseKeyEnabled = preferences.pauseKeyEnabled
         eventTapManager?.pauseKeyCode = preferences.pauseKey
         if preferences.pauseKeyEnabled {
             debugWindowController?.logEvent("  ✅ Pause key enabled (\(preferences.pauseKeyName))")
+        }
+        
+        // 3. Temp off spelling key (Control/Option/Cmd) - hold to temporarily disable spell check
+        eventTapManager?.tempOffSpellingEnabled = preferences.tempOffSpellingEnabled
+        eventTapManager?.tempOffSpellingKey = preferences.tempOffSpellingKey
+        if preferences.tempOffSpellingEnabled {
+            let keyName: String
+            switch preferences.tempOffSpellingKey {
+            case 55: keyName = "Cmd"
+            case 58: keyName = "Option"
+            case 59: keyName = "Control"
+            default: keyName = "Key(\(preferences.tempOffSpellingKey))"
+            }
+            debugWindowController?.logEvent("  ✅ Temp off spelling key enabled (\(keyName))")
         }
         
         // Sync to engine settings
@@ -711,6 +765,12 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         eventTapManager?.onToggleHotkey = { [weak self] in
             self?.statusBarManager?.viewModel.toggleVietnamese()
             
+            // Show on-screen indicator if enabled
+            if ZKSharedSettings.shared.showOnScreenIndicator {
+                let isVietnamese = self?.statusBarManager?.viewModel.isVietnameseEnabled ?? false
+                ZKOnScreenIndicatorController.shared.show(isVietnamese: isVietnamese)
+            }
+            
             self?.debugWindowController?.logEvent("🔄 Toggled Vietnamese mode via hotkey (\(hotkey.displayString))")
         }
 
@@ -731,9 +791,16 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             let currentMethod = viewModel.currentInputMethod
             let newMethod = currentMethod.next()
             viewModel.selectInputMethod(newMethod)
-            
-            // Show on-screen indicator
-            ZKOnScreenIndicatorController.shared.show(inputMethod: newMethod)
+
+            // Play beep sound if enabled
+            if ZKSharedSettings.shared.beepOnToggle {
+                ZKSoundManager.shared.playToggleSound(enabled: true)
+            }
+
+            // Show on-screen indicator if enabled
+            if ZKSharedSettings.shared.showOnScreenIndicator {
+                ZKOnScreenIndicatorController.shared.show(inputMethod: newMethod)
+            }
             
             self?.debugWindowController?.logEvent("🔄 Switched input method to \(newMethod.displayName) via hotkey")
         }
@@ -757,9 +824,16 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             let currentTable = viewModel.currentCodeTable
             let newTable = currentTable.next()
             viewModel.selectCodeTable(newTable)
-            
-            // Show on-screen indicator
-            ZKOnScreenIndicatorController.shared.show(codeTable: newTable)
+
+            // Play beep sound if enabled
+            if ZKSharedSettings.shared.beepOnToggle {
+                ZKSoundManager.shared.playToggleSound(enabled: true)
+            }
+
+            // Show on-screen indicator if enabled
+            if ZKSharedSettings.shared.showOnScreenIndicator {
+                ZKOnScreenIndicatorController.shared.show(codeTable: newTable)
+            }
             
             self?.debugWindowController?.logEvent("🔄 Switched code table to \(newTable.displayName) via hotkey")
         }

@@ -85,7 +85,7 @@ struct Preferences: Codable {
     var codeTableHotkey: Hotkey? = nil    // Optional: Hotkey to switch code table
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
     var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
-    var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
+    var showOnScreenIndicator: Bool = true       // Show floating popup when switching via hotkey
     
     // Input settings
     var inputMethod: InputMethod = .telex

@@ -611,11 +611,18 @@ class ZKVietnameseData {
         0x80000 | UInt32(KEY_E): [0xD945, 0xF965, 0xD845, 0xF865, 0xDB45, 0xFB65, 0xD545, 0xF565, 0xCF45, 0xEF65]
     ]
     
-    // All code tables array
+    // All code tables array (must match CodeTable enum order)
+    // Index 0: Unicode
+    // Index 1: TCVN3 (ABC)
+    // Index 2: VNI Windows
+    // Index 3: Unicode Compound (uses same as Unicode for now)
+    // Index 4: Vietnamese Locale CP1258 (uses same as Unicode for now)
     lazy var codeTables: [[UInt32: [UInt32]]] = [
-        unicodeCodeTable,
-        tcvn3CodeTable,
-        vniWindowsCodeTable
+        unicodeCodeTable,       // Index 0 - Unicode
+        tcvn3CodeTable,         // Index 1 - TCVN3 (ABC)
+        vniWindowsCodeTable,    // Index 2 - VNI Windows
+        unicodeCodeTable,       // Index 3 - Unicode Compound (fallback to Unicode)
+        unicodeCodeTable        // Index 4 - Vietnamese Locale CP1258 (fallback to Unicode)
     ]
     
     // MARK: - Helper Functions

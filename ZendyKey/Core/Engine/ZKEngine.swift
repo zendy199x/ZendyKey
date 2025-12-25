@@ -2530,7 +2530,7 @@ class ZKEngine {
             // This is needed because startNewSession() may not have been called before this
             // (e.g., when restoring after deleting spaces)
             tempDisableKey = false
-            logCallback?("  → Restored word: index=\(index), stateIndex=\(stateIndex), buffer=\(getCurrentWord())")
+            logCallback?("  → Restored word: index=\(index), stateIndex=\(stateIndex)")
         }
     }
     
@@ -2561,8 +2561,9 @@ class ZKEngine {
             lookupKey |= ZKEngine.TONEW_MASK
         }
         
-        // Get code table
-        let codeTable = vietnameseData.codeTables[vCodeTable]
+        // Get code table with bounds check
+        let safeCodeTableIndex = min(max(vCodeTable, 0), vietnameseData.codeTables.count - 1)
+        let codeTable = vietnameseData.codeTables[safeCodeTableIndex]
         
         if (data & ZKEngine.MARK_MASK) != 0 {
             // Has mark - calculate mark element index

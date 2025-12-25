@@ -370,7 +370,6 @@ struct ZKModernMenuView: View {
                         colorScheme: effectiveColorScheme
                     ) {
                         viewModel.selectInputMethod(method)
-                        ZKOnScreenIndicatorController.shared.show(inputMethod: method)
                     }
                     .onHover { hovering in
                         withAnimation(.easeInOut(duration: 0.15)) {
@@ -410,7 +409,6 @@ struct ZKModernMenuView: View {
                         colorScheme: effectiveColorScheme
                     ) {
                         viewModel.selectCodeTable(table)
-                        ZKOnScreenIndicatorController.shared.show(codeTable: table)
                     }
                     .onHover { hovering in
                         withAnimation(ZKAnimations.springFast) {
@@ -464,19 +462,7 @@ struct ZKModernMenuView: View {
                 }
             }
             
-            ZKMenuItem(
-                icon: "arrow.clockwise",
-                title: getUpdateTitle(),
-                isHovered: hoveredItem == "update",
-                colorScheme: effectiveColorScheme
-            ) {
-                onCheckForUpdates?()
-            }
-            .onHover { hovering in
-                withAnimation(ZKAnimations.springFast) {
-                    hoveredItem = hovering ? "update" : nil
-                }
-            }
+
         }
         .padding(.horizontal, 8)
     }
@@ -497,18 +483,16 @@ struct ZKModernMenuView: View {
     private var footerSection: some View {
         VStack(spacing: 2) {
             ZKMenuItem(
-                icon: "gearshape",
-                title: "Bảng điều khiển...",
-                shortcut: "⌘,",
-                isHovered: hoveredItem == "prefs",
+                icon: "arrow.clockwise",
+                title: getUpdateTitle(),
+                isHovered: hoveredItem == "update",
                 colorScheme: effectiveColorScheme
             ) {
-                viewModel.openPreferences()
-                onDismiss()
+                onCheckForUpdates?()
             }
             .onHover { hovering in
                 withAnimation(ZKAnimations.springFast) {
-                    hoveredItem = hovering ? "prefs" : nil
+                    hoveredItem = hovering ? "update" : nil
                 }
             }
             

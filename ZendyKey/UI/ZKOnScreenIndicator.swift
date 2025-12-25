@@ -27,10 +27,32 @@ enum ZKIndicatorType {
         }
     }
     
-    var borderColor: Color {
+    var titleText: String {
         switch self {
         case .language(let isVietnamese):
-            return isVietnamese ? Color(red: 0.85, green: 0.15, blue: 0.15) : Color(red: 0.0, green: 0.4, blue: 0.8)
+            return isVietnamese ? "Tiếng Việt" : "English"
+        case .inputMethod(let method):
+            return method.displayName
+        case .codeTable(let table):
+            return table.displayName
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .language:
+            return "globe"
+        case .inputMethod:
+            return "keyboard"
+        case .codeTable:
+            return "tablecells"
+        }
+    }
+    
+    var accentColor: Color {
+        switch self {
+        case .language(let isVietnamese):
+            return isVietnamese ? Color(red: 0.85, green: 0.15, blue: 0.15) : Color.orange
         case .inputMethod:
             return Color(red: 0.2, green: 0.7, blue: 0.5) // Teal
         case .codeTable:
@@ -38,21 +60,15 @@ enum ZKIndicatorType {
         }
     }
     
-    var glowColor: Color {
+    var ringColor: Color {
         switch self {
         case .language(let isVietnamese):
-            return isVietnamese ? Color.red.opacity(0.5) : Color.blue.opacity(0.5)
+            return isVietnamese ? Color(red: 0.85, green: 0.3, blue: 0.15) : Color.orange
         case .inputMethod:
-            return Color.purple.opacity(0.5)
+            return Color.teal
         case .codeTable:
-            return Color.teal.opacity(0.5)
+            return Color.purple
         }
-    }
-    
-    var borderGradient: AngularGradient {
-        let baseColor = borderColor
-        let colors = [baseColor, baseColor.opacity(0.7), baseColor]
-        return AngularGradient(colors: colors, center: .center)
     }
 }
 
@@ -127,43 +143,57 @@ class ZKOnScreenIndicatorController {
         // Cancel any existing hide timer
         hideTimer?.invalidate()
         
-        let windowSize: CGFloat = 100
+        let windowWidth: CGFloat = 160
+        let windowHeight: CGFloat = 160
         
-        // Create or update the window
+        // Create window if needed
         if indicatorWindow == nil {
             createIndicatorWindow()
         }
         
-        // Update content
-        hostingView?.rootView = ZKOnScreenIndicatorView(type: type)
+        // Check if window is already visible
+        let isAlreadyVisible = indicatorWindow?.alphaValue ?? 0 > 0.5
+        
+        // Update content with crossfade animation if already visible
+        if isAlreadyVisible {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.allowsImplicitAnimation = true
+                hostingView?.rootView = ZKOnScreenIndicatorView(type: type)
+            }
+        } else {
+            hostingView?.rootView = ZKOnScreenIndicatorView(type: type)
+        }
         
         // Position window at top center of main screen
         if let screen = NSScreen.main {
             let screenCenter = screen.frame.width / 2
-            let yPosition = screen.frame.height - windowSize - 120 // 120pt from top
+            let yPosition = screen.frame.height - windowHeight - 100 // 100pt from top
             
             indicatorWindow?.setFrame(
-                NSRect(x: screenCenter - windowSize / 2,
+                NSRect(x: screenCenter - windowWidth / 2,
                        y: yPosition,
-                       width: windowSize,
-                       height: windowSize),
+                       width: windowWidth,
+                       height: windowHeight),
                 display: true
             )
         }
         
-        // Show window with spring animation
-        indicatorWindow?.alphaValue = 0
-        indicatorWindow?.orderFront(nil)
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.35
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            context.allowsImplicitAnimation = true
-            indicatorWindow?.animator().alphaValue = 1
+        // Only animate fade-in if not already visible
+        if !isAlreadyVisible {
+            indicatorWindow?.alphaValue = 0
+            indicatorWindow?.orderFront(nil)
+            
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                context.allowsImplicitAnimation = true
+                indicatorWindow?.animator().alphaValue = 1
+            }
         }
         
-        // Auto-hide after 1.2 seconds
-        hideTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
+        // Auto-hide after 1.5 seconds
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
             self?.hideIndicator()
         }
     }
@@ -183,7 +213,7 @@ class ZKOnScreenIndicatorController {
     
     private func createIndicatorWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+            contentRect: NSRect(x: 0, y: 0, width: 180, height: 160),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -192,7 +222,7 @@ class ZKOnScreenIndicatorController {
         window.level = .popUpMenu
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.hasShadow = false
+        window.hasShadow = false  // Disabled to avoid black border artifact
         window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
         
@@ -205,50 +235,110 @@ class ZKOnScreenIndicatorController {
     }
 }
 
-// MARK: - Premium Indicator View
+// MARK: - Premium Indicator View with Glass Background
 
 struct ZKOnScreenIndicatorView: View {
     let type: ZKIndicatorType
     
+    @State private var isPulsing = false
+    
     var body: some View {
-        ZStack {
-            // Outer glow ring
-            Circle()
-                .stroke(type.glowColor, lineWidth: 8)
-                .blur(radius: 8)
-                .frame(width: 80, height: 80)
-            
-            // Main ring with gradient
-            Circle()
-                .stroke(type.borderGradient, lineWidth: 4)
-                .frame(width: 80, height: 80)
-            
-            // Inner subtle glass effect
-            Circle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 72, height: 72)
-                .blur(radius: 1)
-            
-            // Content
-            VStack(spacing: 2) {
-                // Logo
-                if let logo = NSImage(named: "ZendyKeyLogo") {
-                    Image(nsImage: logo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 32, height: 32)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
+        VStack(spacing: 12) {
+            // Icon with pulsing ring
+            ZStack {
+                // Outer pulsing ring (breathing animation)
+                Circle()
+                    .stroke(type.ringColor.opacity(0.3), lineWidth: 3)
+                    .frame(width: 90, height: 90)
+                    .scaleEffect(isPulsing ? 1.15 : 1.0)
+                    .opacity(isPulsing ? 0.0 : 0.6)
                 
-                // Main text (VI/EN, Telex, Unicode, etc.)
-                Text(type.displayText)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(type.borderColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                // Second pulsing ring (delayed)
+                Circle()
+                    .stroke(type.ringColor.opacity(0.4), lineWidth: 2)
+                    .frame(width: 85, height: 85)
+                    .scaleEffect(isPulsing ? 1.1 : 1.0)
+                    .opacity(isPulsing ? 0.2 : 0.8)
+                
+                // Main ring border
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [type.ringColor, type.ringColor.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+                    .frame(width: 75, height: 75)
+                
+                // Inner filled circle with gradient
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [type.accentColor, type.accentColor.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 68, height: 68)
+                    .shadow(color: type.accentColor.opacity(0.5), radius: 8, x: 0, y: 4)
+                
+                // Content inside circle
+                VStack(spacing: 2) {
+                    Image(systemName: type.iconName)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Text(type.displayText)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+            }
+            
+            // Title below
+            Text(type.titleText)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white)
+                .lineLimit(1)
+        }
+        .frame(width: 140)  // Fixed width to prevent layout changes
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            // Dark glass background for consistent appearance
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.regularMaterial)
+                .environment(\.colorScheme, .dark)  // Force dark material
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.3),
+                            Color.white.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+        .onAppear {
+            // Start pulsing animation
+            withAnimation(
+                .easeInOut(duration: 1.0)
+                .repeatForever(autoreverses: false)
+            ) {
+                isPulsing = true
             }
         }
-        .frame(width: 90, height: 90)
+        .onDisappear {
+            isPulsing = false
+        }
     }
 }
 
@@ -260,13 +350,9 @@ struct ZKOnScreenIndicatorView: View {
         }
         HStack(spacing: 30) {
             ZKOnScreenIndicatorView(type: .inputMethod(.telex))
-            ZKOnScreenIndicatorView(type: .inputMethod(.vni))
-        }
-        HStack(spacing: 30) {
             ZKOnScreenIndicatorView(type: .codeTable(.unicode))
-            ZKOnScreenIndicatorView(type: .codeTable(.tcvn3))
         }
     }
     .padding(50)
-    .background(Color.black.opacity(0.3))
+    .background(Color.black.opacity(0.5))
 }

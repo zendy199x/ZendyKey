@@ -53,6 +53,9 @@ enum ZKSharedSettingsKey: String {
     case pauseKeyEnabled = "ZendyKey.pauseKeyEnabled"
     case pauseKey = "ZendyKey.pauseKey"
     case pauseKeyName = "ZendyKey.pauseKeyName"
+    
+    // On-screen indicator settings
+    case showOnScreenIndicator = "ZendyKey.showOnScreenIndicator"
 
     // Macro settings
     case macroEnabled = "ZendyKey.macroEnabled"
@@ -256,6 +259,17 @@ class ZKSharedSettings {
             return volume > 0 ? volume : 0.5  // Default to 0.5 if not set
         }
         set { defaults.set(newValue, forKey: ZKSharedSettingsKey.beepVolume.rawValue) }
+    }
+    
+    var showOnScreenIndicator: Bool {
+        get {
+            // Default to true if not set
+            if defaults.object(forKey: ZKSharedSettingsKey.showOnScreenIndicator.rawValue) == nil {
+                return true
+            }
+            return defaults.bool(forKey: ZKSharedSettingsKey.showOnScreenIndicator.rawValue)
+        }
+        set { defaults.set(newValue, forKey: ZKSharedSettingsKey.showOnScreenIndicator.rawValue) }
     }
 
     // MARK: - Input Method Settings
@@ -771,6 +785,7 @@ class ZKSharedSettings {
         }
         prefs.beepOnToggle = beepOnToggle
         prefs.beepVolume = beepVolume
+        prefs.showOnScreenIndicator = showOnScreenIndicator
         
         // Input Method Hotkey (optional)
         let inputMethodHkCode = inputMethodHotkeyCode
@@ -904,6 +919,7 @@ class ZKSharedSettings {
         toggleHotkeyIsModifierOnly = prefs.toggleHotkey.isModifierOnly
         beepOnToggle = prefs.beepOnToggle
         beepVolume = prefs.beepVolume
+        showOnScreenIndicator = prefs.showOnScreenIndicator
         
         // Input Method Hotkey (optional)
         if let inputMethodHk = prefs.inputMethodHotkey {

@@ -32,17 +32,28 @@ class ZKEventTapManager {
     var codeTableHotkey: Hotkey?
     var onCodeTableHotkey: (() -> Void)?
     
-    // Pause key configuration
+    // MARK: - Modifier Key Features (Pause, Restore, Temp Off Spelling)
+    
+    // Pause key configuration (hold to temporarily switch to English)
     var pauseKeyEnabled: Bool = false
-    var pauseKeyCode: UInt16 = 58  // Default: Option key
+    var pauseKeyCode: UInt16 = 59  // Default: Control key
     var onPauseKeyDown: (() -> Void)?
     var onPauseKeyUp: (() -> Void)?
+    
+    // Restore key configuration (press to restore original text without tones)
+    var restoreKeyEnabled: Bool = false
+    var restoreKeyCode: UInt16 = 53  // Default: ESC key
+    var onRestoreKeyPressed: ((CGEventTapProxy) -> Bool)?  // Returns true if restore was performed
+    
+    // Temp off spelling configuration (hold to temporarily disable spell check)
+    var tempOffSpellingEnabled: Bool = false
+    var tempOffSpellingKey: UInt16 = 58  // Default: Option key
+    var onTempOffSpellingStateChange: ((Bool) -> Void)?  // true = pressed, false = released
     
     // Recording mode - when true, hotkeys are bypassed to allow recording new hotkeys
     var isRecordingHotkey: Bool = false
     
-    // Note: Undo typing key is handled by ZKKeyboardEventHandler directly
-    // because it needs to check engine state before deciding to consume the key
+    // MARK: - State Tracking
     
     // Modifier-only hotkey tracking
     private var modifierOnlyState: ModifierOnlyState = ModifierOnlyState()
@@ -59,6 +70,13 @@ class ZKEventTapManager {
     private struct PauseKeyState {
         var isHolding: Bool = false
         var lastKeyCode: UInt16 = 0
+    }
+    
+    // Temp off spelling state tracking
+    private var tempOffSpellingState: TempOffSpellingState = TempOffSpellingState()
+    
+    private struct TempOffSpellingState {
+        var isHolding: Bool = false
     }
     
     // MARK: - Delegate Protocol
@@ -233,38 +251,124 @@ class ZKEventTapManager {
 
         // Pause key handling (hold to temporarily switch to English)
         if pauseKeyEnabled && type == .flagsChanged {
+            let flags = event.flags
+            let isPauseKeyPressed: Bool
+            
+            debugLogCallback?("🔑 PAUSE KEY DEBUG: pauseKeyEnabled=\(pauseKeyEnabled), pauseKeyCode=\(pauseKeyCode), flags=\(flags.rawValue)")
+            
+            // Check if the configured pause key is pressed based on flags
+            switch pauseKeyCode {
+            case 58:  // Option key
+                isPauseKeyPressed = flags.contains(.maskAlternate)
+                debugLogCallback?("  → Checking Option: maskAlternate=\(flags.contains(.maskAlternate))")
+            case 59:  // Control key
+                isPauseKeyPressed = flags.contains(.maskControl)
+                debugLogCallback?("  → Checking Control: maskControl=\(flags.contains(.maskControl))")
+            case 55:  // Command key
+                isPauseKeyPressed = flags.contains(.maskCommand)
+                debugLogCallback?("  → Checking Command: maskCommand=\(flags.contains(.maskCommand))")
+            default:
+                isPauseKeyPressed = false
+                debugLogCallback?("  → Unknown pauseKeyCode: \(pauseKeyCode)")
+            }
+            
+            debugLogCallback?("  → isPauseKeyPressed=\(isPauseKeyPressed), isHolding=\(pauseKeyState.isHolding)")
+            
+            if isPauseKeyPressed && !pauseKeyState.isHolding {
+                // Pause key pressed - switch to English temporarily
+                pauseKeyState.isHolding = true
+                pauseKeyState.lastKeyCode = pauseKeyCode
+                let keyName = getKeyName(pauseKeyCode)
+                debugLogCallback?("⏸️ Pause key (\(keyName)) pressed - temporarily switching to English")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onPauseKeyDown?()
+                }
+            } else if !isPauseKeyPressed && pauseKeyState.isHolding {
+                // Pause key released - restore previous mode
+                pauseKeyState.isHolding = false
+                let keyName = getKeyName(pauseKeyCode)
+                debugLogCallback?("▶️ Pause key (\(keyName)) released - restoring Vietnamese")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onPauseKeyUp?()
+                }
+            }
+        }
+        
+        // Temp off spelling handling (hold to temporarily disable spell check)
+        if tempOffSpellingEnabled && type == .flagsChanged {
+            let flags = event.flags
+            let isTempOffKeyPressed: Bool
+            
+            switch tempOffSpellingKey {
+            case 58:  // Option key
+                isTempOffKeyPressed = flags.contains(.maskAlternate)
+            case 59:  // Control key
+                isTempOffKeyPressed = flags.contains(.maskControl)
+            case 55:  // Command key
+                isTempOffKeyPressed = flags.contains(.maskCommand)
+            default:
+                isTempOffKeyPressed = false
+            }
+            
+            if isTempOffKeyPressed && !tempOffSpellingState.isHolding {
+                // Temp off key pressed - disable spell check
+                tempOffSpellingState.isHolding = true
+                let keyName = getKeyName(tempOffSpellingKey)
+                debugLogCallback?("🔤 Temp off spelling key (\(keyName)) pressed - disabling spell check")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onTempOffSpellingStateChange?(true)
+                }
+            } else if !isTempOffKeyPressed && tempOffSpellingState.isHolding {
+                // Temp off key released - restore spell check
+                tempOffSpellingState.isHolding = false
+                let keyName = getKeyName(tempOffSpellingKey)
+                debugLogCallback?("🔤 Temp off spelling key (\(keyName)) released - restoring spell check")
+                DispatchQueue.main.async { [weak self] in
+                    self?.onTempOffSpellingStateChange?(false)
+                }
+            }
+        }
+        
+        // Restore key handling (press to restore original text without tones)
+        if restoreKeyEnabled && type == .keyDown {
             let keyCode = event.keyCode
             
-            // Check if this is the configured pause key
-            if keyCode == pauseKeyCode {
-                // Determine if key is being pressed or released by checking flags
+            if keyCode == restoreKeyCode {
+                // Only process if no other modifiers are pressed (for ESC)
+                // For Option/Control, we need special handling
                 let flags = event.flags
-                let isPauseKeyPressed: Bool
+                let shouldProcess: Bool
                 
-                if pauseKeyCode == 58 {  // Option key
-                    isPauseKeyPressed = flags.contains(.maskAlternate)
-                } else if pauseKeyCode == 59 {  // Control key
-                    isPauseKeyPressed = flags.contains(.maskControl)
-                } else {
-                    isPauseKeyPressed = false
+                switch restoreKeyCode {
+                case 53:  // ESC - process with no modifiers
+                    shouldProcess = !flags.contains(.maskCommand) && !flags.contains(.maskControl) && !flags.contains(.maskAlternate)
+                case 58:  // Option - already handled by flagsChanged, but we handle keyDown too
+                    shouldProcess = flags.contains(.maskAlternate) && !flags.contains(.maskCommand) && !flags.contains(.maskControl)
+                case 59:  // Control
+                    shouldProcess = flags.contains(.maskControl) && !flags.contains(.maskCommand) && !flags.contains(.maskAlternate)
+                default:
+                    shouldProcess = false
                 }
                 
-                if isPauseKeyPressed && !pauseKeyState.isHolding {
-                    // Pause key pressed - switch to English temporarily
-                    pauseKeyState.isHolding = true
-                    pauseKeyState.lastKeyCode = keyCode
-                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
-                    debugLogCallback?("⏸️ Pause key (\(keyName)) pressed - temporarily switching to English")
-                    DispatchQueue.main.async { [weak self] in
-                        self?.onPauseKeyDown?()
+                if shouldProcess {
+                    let keyName = getKeyName(restoreKeyCode)
+                    debugLogCallback?("🔄 Restore key (\(keyName)) pressed - attempting to restore original text")
+                    
+                    // Call the callback synchronously to check if restore was performed
+                    var wasRestored = false
+                    if Thread.isMainThread {
+                        wasRestored = self.onRestoreKeyPressed?(proxy) ?? false
+                    } else {
+                        DispatchQueue.main.sync { [weak self] in
+                            wasRestored = self?.onRestoreKeyPressed?(proxy) ?? false
+                        }
                     }
-                } else if !isPauseKeyPressed && pauseKeyState.isHolding {
-                    // Pause key released - restore previous mode
-                    pauseKeyState.isHolding = false
-                    let keyName = pauseKeyCode == 58 ? "Option" : "Control"
-                    debugLogCallback?("▶️ Pause key (\(keyName)) released - restoring Vietnamese")
-                    DispatchQueue.main.async { [weak self] in
-                        self?.onPauseKeyUp?()
+                    
+                    if wasRestored {
+                        debugLogCallback?("  ✅ Restore successful - consuming event")
+                        return nil  // Consume the event
+                    } else {
+                        debugLogCallback?("  ℹ️ Nothing to restore - passing event through")
                     }
                 }
             }
@@ -371,6 +475,51 @@ class ZKEventTapManager {
         // to check if there's something to undo in the engine buffer first.
         // If there's nothing to undo, the key should be passed through normally.
 
+        // Handle pause key with Option/Control - inject clean character directly
+        // IMPORTANT: This must be BEFORE shouldProcessEvent because that returns false for Control/Option
+        // This completely bypasses Vietnamese processing and avoids macOS special character interpretation
+        if pauseKeyEnabled && pauseKeyState.isHolding && type == .keyDown {
+            let keyCode = event.keyCode
+            
+            // Check if this is an event we injected (marked with special flag)
+            // We use eventSourceUserData to mark our injected events
+            let isInjectedEvent = event.getIntegerValueField(.eventSourceUserData) == 0x5A4B01
+            if isInjectedEvent {
+                // This is our own injected event - pass it through
+                debugLogCallback?("  ↩️ Pause key: passing through our injected event for keyCode \(keyCode)")
+                return Unmanaged.passUnretained(event)
+            }
+            
+            debugLogCallback?("🔑 PAUSE KEY INJECT: isHolding=\(pauseKeyState.isHolding), keyCode=\(keyCode), pauseKeyCode=\(pauseKeyCode)")
+            
+            // Only handle Option and Control pause keys
+            if pauseKeyCode == 58 || pauseKeyCode == 59 {  // Option or Control key
+                // Create a new clean event without the pause modifier
+                if let cleanEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) {
+                    // Copy original flags but remove the pause modifier
+                    var newFlags = event.flags
+                    if pauseKeyCode == 58 {
+                        newFlags.remove(.maskAlternate)
+                    } else if pauseKeyCode == 59 {
+                        newFlags.remove(.maskControl)
+                    }
+                    cleanEvent.flags = newFlags
+                    
+                    // Mark this event so we recognize it and pass through on second encounter
+                    cleanEvent.setIntegerValueField(.eventSourceUserData, value: 0x5A4B01)
+                    
+                    // Post the clean event and consume original
+                    cleanEvent.post(tap: .cghidEventTap)
+                    debugLogCallback?("  ✅ Pause key: INJECTED clean character for keyCode \(keyCode)")
+                    return nil  // Consume original event
+                } else {
+                    debugLogCallback?("  ❌ Pause key: FAILED to create clean event")
+                }
+            } else {
+                debugLogCallback?("  ⏭️ Pause key: Skipping (pauseKeyCode \(pauseKeyCode) not handled)")
+            }
+        }
+
         // Check if delegate wants to process this event
         guard let delegate = delegate else {
             debugLogCallback?("  → No delegate!")
@@ -391,6 +540,18 @@ class ZKEventTapManager {
 
         // Consume event by returning nil
         return nil
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func getKeyName(_ keyCode: UInt16) -> String {
+        switch keyCode {
+        case 53: return "ESC"
+        case 55: return "Cmd"
+        case 58: return "Option"
+        case 59: return "Control"
+        default: return "Key(\(keyCode))"
+        }
     }
     
     // MARK: - Permission Check

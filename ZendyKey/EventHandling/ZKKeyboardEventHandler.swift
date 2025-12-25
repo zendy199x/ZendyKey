@@ -15,6 +15,9 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
     let engine: ZKEngine  // Made public for debug access
     private let injector: ZKCharacterInjector
     private var isVietnameseEnabled = true
+    
+    // Store the last proxy for use in performRestore (called from EventTapManager callback)
+    private var lastProxy: CGEventTapProxy?
 
     // Debug logging callback
     var debugLogCallback: ((String) -> Void)?
@@ -69,13 +72,7 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         didSet { updateEngineSettings() }
     }
     
-    @Published var tempOffSpellingEnabled: Bool = false {
-        didSet { updateEngineSettings() }
-    }
-    
-    @Published var tempOffSpellingKey: UInt16 = 59 {  // Default: Control key
-        didSet { updateEngineSettings() }
-    }
+    // Note: tempOffSpellingEnabled and tempOffSpellingKey are now handled by ZKEventTapManager
     
     // Macro settings
     @Published var macroEnabled: Bool = false {
@@ -98,9 +95,7 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
     // Excluded apps
     @Published var excludedApps: [ExcludedApp] = []
 
-    // Restore to raw keys configuration
-    @Published var restoreKeyEnabled: Bool = false
-    @Published var restoreKeyCode: UInt16 = 53  // Default: ESC (0x35 = 53)
+    // Note: restoreKeyEnabled and restoreKeyCode are now handled by ZKEventTapManager
 
     // Managers
     private let macroManager = ZKMacroManager()
@@ -207,6 +202,33 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         }
     }
     
+    // MARK: - Restore Original Text
+    
+    /// Performs restore to original (raw) text if available
+    /// - Parameter proxy: The CGEventTapProxy to use for character injection
+    /// Returns true if restore was performed, false if nothing to restore
+    func performRestore(proxy: CGEventTapProxy) -> Bool {
+        guard engine.canUndoTyping() else { return false }
+        
+        let result = engine.undoTyping()
+        
+        guard result.shouldConsume else { return false }
+        
+        // Use synchronized injection to replace Vietnamese text with raw keystrokes
+        injector.injectSync(
+            backspaceCount: result.backspaceCount,
+            characters: result.newCharacters,
+            codeTable: codeTable,
+            proxy: proxy,
+            fixAutocomplete: false
+        )
+        
+        // Mark new session after undo, preserve mid-sentence state
+        injector.markNewSession(preserveMidSentence: true)
+        
+        return true
+    }
+    
     func setVietnamese(_ enabled: Bool) {
         isVietnameseEnabled = enabled
         // Update engine's vLanguage to match
@@ -237,32 +259,11 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return false
         }
 
-        // Handle temp off spelling with configurable key (Control/Option/Command)
-        if tempOffSpellingEnabled {
-            let isTempOffKeyPressed: Bool
-            switch tempOffSpellingKey {
-            case 59: // Control
-                isTempOffKeyPressed = event.isControlPressed
-            case 58: // Option
-                isTempOffKeyPressed = event.isOptionPressed
-            case 55: // Command
-                isTempOffKeyPressed = event.isCommandPressed
-            default:
-                isTempOffKeyPressed = event.isControlPressed  // Default to Control
-            }
-            
-            if isTempOffKeyPressed {
-                // Temporarily disable spell checking when temp off key is pressed
-                engine.vTempOffSpelling = 1
-            } else {
-                engine.vTempOffSpelling = 0
-            }
-        } else {
-            engine.vTempOffSpelling = 0
-        }
+        // Note: Temp off spelling is now handled by ZKEventTapManager flagsChanged event
+        // The engine.vTempOffSpelling flag is set directly by the callback
 
-        // Don't process if Command is pressed (unless it's the temp off key)
-        if event.isCommandPressed && tempOffSpellingKey != 55 {
+        // Don't process if Command is pressed
+        if event.isCommandPressed {
             engine.reset()
             // Cmd + Arrow keys move cursor, so mark as mid-sentence
             // This prevents Forward Delete from deleting text on the right
@@ -273,15 +274,15 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return false
         }
 
-        // Don't process if Option is pressed (unless it's the temp off key for spelling)
-        if event.isOptionPressed && !(tempOffSpellingEnabled && tempOffSpellingKey == 58) {
+        // Don't process if Option is pressed (for typing special characters)
+        if event.isOptionPressed {
             engine.reset()
             injector.markNewSession(preserveMidSentence: true)  // Preserve mid-sentence state
             return false
         }
 
-        // Don't process if Control is pressed (unless it's the temp off key for spelling)
-        if event.isControlPressed && !(tempOffSpellingEnabled && tempOffSpellingKey == 59) {
+        // Don't process if Control is pressed (for keyboard shortcuts)
+        if event.isControlPressed {
             engine.reset()
             injector.markNewSession(preserveMidSentence: true)  // Preserve mid-sentence state
             return false
@@ -291,6 +292,9 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
     }
     
     func processKeyEvent(_ event: CGEvent, type: CGEventType, proxy: CGEventTapProxy) -> CGEvent? {
+        // Store proxy for use in performRestore (called from EventTapManager callback)
+        self.lastProxy = proxy
+        
         guard type == .keyDown else {
             return event
         }
@@ -334,45 +338,8 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
             return event
         }
 
-        // Handle restore key (ESC/Option/Control) - undo typing if enabled
-        if keyCode == restoreKeyCode {
-            // Only handle undo if setting is enabled
-            if restoreKeyEnabled {
-                // Check if undo is available
-                if engine.canUndoTyping() {
-                    let result = engine.undoTyping()
-
-                    if result.shouldConsume {
-                        // Get key name for debug logging
-                        let keyName: String
-                        switch restoreKeyCode {
-                        case 53: keyName = "ESC"
-                        case 58: keyName = "Option"
-                        case 59: keyName = "Control"
-                        default: keyName = "Key(\(restoreKeyCode))"
-                        }
-                        debugLogCallback?("🔄 Restore key (\(keyName)) pressed - restoring to raw: \(result.newCharacters)")
-                        
-                        // Use synchronized injection to replace Vietnamese text with raw keystrokes
-                        injector.injectSync(
-                            backspaceCount: result.backspaceCount,
-                            characters: result.newCharacters,
-                            codeTable: codeTable,
-                            proxy: proxy,
-                            fixAutocomplete: false
-                        )
-
-                        // Mark new session after undo, preserve mid-sentence state
-                        injector.markNewSession(preserveMidSentence: true)
-
-                        return nil  // Consume the event
-                    }
-                }
-            }
-
-            // Pass through if undo not enabled or nothing to undo
-            return event
-        }
+        // Note: Restore key (ESC/Option/Control) is now handled by ZKEventTapManager
+        // The onRestoreKeyPressed callback handles the undo logic
 
         // Handle Forward Delete (Fn+Delete)
         if keyCode == 0x75 { // Forward Delete
@@ -595,7 +562,7 @@ class ZKKeyboardEventHandler: ZKEventTapManager.EventTapDelegate {
         settings.restoreIfWrongSpelling = restoreIfWrongSpelling
         settings.allowConsonantZFWJ = allowConsonantZFWJ
         settings.freeMarking = freeMarkEnabled
-        settings.tempOffSpellingEnabled = tempOffSpellingEnabled
+        // Note: tempOffSpellingEnabled is now handled by ZKEventTapManager
         
         // Macro settings
         settings.macroEnabled = macroEnabled

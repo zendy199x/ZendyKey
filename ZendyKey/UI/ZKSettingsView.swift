@@ -200,19 +200,6 @@ struct GeneralSettingsSection: View {
                                 userInfo: ["enabled": newValue]
                             )
                         }
-                        
-                        Divider()
-                        
-                        // Sound toggle row
-                        ZKToggleRow(
-                            icon: "speaker.wave.2.fill",
-                            title: "Phát âm thanh khi chuyển chế độ",
-                            subtitle: "Phát beep khi bấm phím tắt"
-                        ) {
-                            Toggle("", isOn: $viewModel.preferences.beepOnToggle)
-                                .toggleStyle(ZKToggleStyle())
-                                .labelsHidden()
-                        }
                     }
                 }
                 .onAppear {
@@ -264,14 +251,6 @@ struct GeneralSettingsSection: View {
                             Toggle("Tự động khôi phục tiếng Anh", isOn: $viewModel.preferences.autoRestoreEnglishEnabled)
                             
                             Text("Tự động chuyển về tiếng Anh khi phát hiện từ như 'text', 'window', 'file'...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Hiển thị chỉ báo trên màn hình", isOn: $viewModel.preferences.showOnScreenIndicator)
-                            
-                            Text("Hiển thị icon V/E khi chuyển ngôn ngữ")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -343,6 +322,70 @@ struct HotkeysSettingsSection: View {
                             activeRecordingId: $activeRecordingId,
                             isConflict: { isHotkeyConflict($0, for: .codeTable) }
                         )
+                        
+                        Divider()
+                            .padding(.top, 4)
+                        
+                        // On-screen indicator toggle
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(ZKColors.accent.opacity(0.12))
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: "rectangle.inset.filled.on.rectangle")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(ZKColors.accent)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hiển thị popup chuyển đổi")
+                                    .font(ZKTypography.body)
+                                    .foregroundColor(ZKColors.textPrimary)
+                                
+                                Text("Hiện thông báo nổi khi sử dụng phím tắt")
+                                    .font(ZKTypography.caption)
+                                    .foregroundColor(ZKColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $viewModel.preferences.showOnScreenIndicator.animation(ZKAnimations.spring))
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
+                        }
+                        
+                        Divider()
+                            .padding(.top, 4)
+                        
+                        // Beep sound toggle
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(ZKColors.accent.opacity(0.12))
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: "speaker.wave.2.fill")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(ZKColors.accent)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Phát âm thanh khi chuyển đổi")
+                                    .font(ZKTypography.body)
+                                    .foregroundColor(ZKColors.textPrimary)
+                                
+                                Text("Phát beep khi sử dụng phím tắt")
+                                    .font(ZKTypography.caption)
+                                    .foregroundColor(ZKColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $viewModel.preferences.beepOnToggle.animation(ZKAnimations.spring))
+                                .toggleStyle(ZKToggleStyle())
+                                .labelsHidden()
+                        }
                     }
                 }
                 
