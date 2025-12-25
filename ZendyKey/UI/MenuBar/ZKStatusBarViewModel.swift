@@ -60,6 +60,13 @@ class ZKStatusBarViewModel: ObservableObject {
             ZKOnScreenIndicatorController.shared.show(isVietnamese: isVietnameseEnabled)
         }
         
+        // Notify Settings panel to update toggle with animation
+        NotificationCenter.default.post(
+            name: .vietnameseModeDidChange,
+            object: nil,
+            userInfo: ["enabled": isVietnameseEnabled]
+        )
+        
         // Save language for current app (Smart Switch)
         saveLanguageForCurrentApp()
     }
@@ -76,6 +83,13 @@ class ZKStatusBarViewModel: ObservableObject {
         if prefs.showOnScreenIndicator {
             ZKOnScreenIndicatorController.shared.show(isVietnamese: enabled)
         }
+        
+        // Notify Settings panel to update toggle with animation
+        NotificationCenter.default.post(
+            name: .vietnameseModeDidChange,
+            object: nil,
+            userInfo: ["enabled": enabled]
+        )
         
         // Save language for current app (Smart Switch)
         saveLanguageForCurrentApp()
@@ -127,6 +141,9 @@ class ZKStatusBarViewModel: ObservableObject {
         var prefs = ZKSharedSettings.shared.loadPreferences()
         prefs.inputMethod = method
         ZKSharedSettings.shared.savePreferences(prefs)
+        
+        // Notify Settings panel to update with animation
+        NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
 
         // Verify saved
         let savedPrefs = ZKSharedSettings.shared.loadPreferences()
@@ -143,6 +160,9 @@ class ZKStatusBarViewModel: ObservableObject {
         var prefs = ZKSharedSettings.shared.loadPreferences()
         prefs.codeTable = table
         ZKSharedSettings.shared.savePreferences(prefs)
+        
+        // Notify Settings panel to update with animation
+        NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
         
         // Save code table for current app (Remember Code Table Per App - OpenKey vRememberCode)
         saveCodeTableForCurrentApp()

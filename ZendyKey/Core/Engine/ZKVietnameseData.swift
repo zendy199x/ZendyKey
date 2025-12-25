@@ -84,13 +84,15 @@ class ZKVietnameseData {
     // MARK: - Processing Characters (from Engine.cpp)
     
     let processingChar: [[UInt16]] = [
-        // Telex
+        // 0 = Telex
         [KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z],
-        // VNI
+        // 1 = VNI
         [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0],
-        // Simple Telex 1
+        // 2 = VIQR (uses similar keys to Telex for marks, but with different processing)
         [KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z],
-        // Simple Telex 2
+        // 3 = Simple Telex 1
+        [KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z],
+        // 4 = Simple Telex 2
         [KEY_S, KEY_F, KEY_R, KEY_X, KEY_J, KEY_A, KEY_O, KEY_E, KEY_W, KEY_D, KEY_Z]
     ]
     

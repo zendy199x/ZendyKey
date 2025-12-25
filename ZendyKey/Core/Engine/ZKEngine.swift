@@ -1279,14 +1279,26 @@ class ZKEngine {
     }
     
     private func isKeyZ(keyCode: UInt16, inputType: Int) -> Bool {
+        // Bounds check: processingChar indices 0-4 (Telex, VNI, VIQR, SimpleTelex1, SimpleTelex2)
+        guard inputType >= 0 && inputType < vietnameseData.processingChar.count else {
+            return false
+        }
         return vietnameseData.processingChar[inputType][10] == keyCode
     }
     
     private func isKeyD(keyCode: UInt16, inputType: Int) -> Bool {
+        // Bounds check: processingChar indices 0-4 (Telex, VNI, VIQR, SimpleTelex1, SimpleTelex2)
+        guard inputType >= 0 && inputType < vietnameseData.processingChar.count else {
+            return false
+        }
         return vietnameseData.processingChar[inputType][9] == keyCode
     }
     
     private func isKeyW(keyCode: UInt16, inputType: Int) -> Bool {
+        // Bounds check: processingChar indices 0-4 (Telex, VNI, VIQR, SimpleTelex1, SimpleTelex2)
+        guard inputType >= 0 && inputType < vietnameseData.processingChar.count else {
+            return false
+        }
         if inputType != 1 {
             return vietnameseData.processingChar[inputType][8] == keyCode
         } else {

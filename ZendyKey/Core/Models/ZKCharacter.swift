@@ -266,9 +266,9 @@ enum CodeTable: Int, CaseIterable, Codable {
 enum InputMethod: Int, CaseIterable, Codable {
     case telex = 0
     case vni = 1
-    case simpleTelex1 = 2
-    case simpleTelex2 = 3
-    case viqr = 4
+    case viqr = 2
+    case simpleTelex1 = 3
+    case simpleTelex2 = 4
     
     /// Ordered cases for display: Telex → VNI → VIQR → Simple Telex → Simple Telex 2
     static var orderedCases: [InputMethod] {
@@ -287,9 +287,9 @@ enum InputMethod: Int, CaseIterable, Codable {
         switch self {
         case .telex: return "Telex"
         case .vni: return "VNI"
+        case .viqr: return "VIQR"
         case .simpleTelex1: return "Simple Telex 1"
         case .simpleTelex2: return "Simple Telex 2"
-        case .viqr: return "VIQR"
         }
     }
     
@@ -298,9 +298,9 @@ enum InputMethod: Int, CaseIterable, Codable {
         switch self {
         case .telex: return "aa→â, dd→đ, aw→ă, s/f/r/x/j→dấu"
         case .vni: return "a6→â, d9→đ, a8→ă, 1/2/3/4/5→dấu"
+        case .viqr: return "a^→â, a'→á, a`→à, dd→đ"
         case .simpleTelex1: return "Telex đơn giản 1"
         case .simpleTelex2: return "Telex đơn giản 2"
-        case .viqr: return "a^→â, a'→á, a`→à, dd→đ"
         }
     }
 }

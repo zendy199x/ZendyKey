@@ -223,7 +223,9 @@ struct GeneralSettingsSection: View {
                         queue: .main
                     ) { notification in
                         if let enabled = notification.userInfo?["enabled"] as? Bool {
-                            isVietnameseEnabled = enabled
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                isVietnameseEnabled = enabled
+                            }
                         }
                     }
                     // Request current state
@@ -232,12 +234,12 @@ struct GeneralSettingsSection: View {
                 
                 // Input Method
                 ZKSection("Kiểu gõ") {
-                    ZKInputMethodPicker(selection: $viewModel.preferences.inputMethod)
+                    ZKSegmentPicker(selection: $viewModel.preferences.inputMethod)
                 }
                 
                 // Code Table
                 ZKSection( "Bảng mã") {
-                    ZKCodeTablePicker(selection: $viewModel.preferences.codeTable)
+                    ZKGridPicker(selection: $viewModel.preferences.codeTable)
                 }
                 
                 // Basic Options
@@ -2180,216 +2182,6 @@ struct ZKConvertToolSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-        }
-    }
-}
-
-// MARK: - Reusable Components
-
-// MARK: - Input Method Picker with Premium Design
-
-struct ZKInputMethodPicker: View {
-    @Binding var selection: InputMethod
-    @Environment(\.colorScheme) private var colorScheme
-    @Namespace private var animation
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Segmented buttons
-            HStack(spacing: 0) {
-                ForEach(InputMethod.orderedCases, id: \.self) { method in
-                    ZKInputMethodButton(
-                        method: method,
-                        isSelected: selection == method,
-                        namespace: animation
-                    ) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                            selection = method
-                        }
-                    }
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(ZKColors.glassBackground.opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(ZKColors.glassBorder, lineWidth: 1)
-            )
-            
-            // Dynamic description
-            Text(selection.description)
-                .font(ZKTypography.caption)
-                .foregroundColor(ZKColors.textTertiary)
-                .animation(.easeInOut(duration: 0.2), value: selection)
-        }
-    }
-}
-
-struct ZKInputMethodButton: View {
-    let method: InputMethod
-    let isSelected: Bool
-    var namespace: Namespace.ID
-    let action: () -> Void
-    
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            Text(method.displayName)
-                .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
-                .animation(.easeInOut(duration: 0.15), value: isHovered)
-                .frame(minWidth: 80)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background {
-                    if isSelected {
-                        ZKColors.accentGradient
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .matchedGeometryEffect(id: "SelectedIndicator", in: namespace)
-                    } else if isHovered {
-                        Color.white.opacity(0.08)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
-// MARK: - Code Table Picker (Modern Grid with Sliding Animation)
-
-struct ZKCodeTablePicker: View {
-    @Binding var selection: CodeTable
-    @Environment(\.colorScheme) private var colorScheme
-    @Namespace private var animation
-    
-    // Grid layout: 2 columns
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
-    
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(CodeTable.allCases, id: \.self) { table in
-                ZKCodeTableButton(
-                    table: table,
-                    isSelected: selection == table,
-                    namespace: animation
-                ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        selection = table
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct ZKCodeTableButton: View {
-    let table: CodeTable
-    let isSelected: Bool
-    var namespace: Namespace.ID
-    let action: () -> Void
-    
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                // Selection indicator circle
-                ZStack {
-                    Circle()
-                        .stroke(isSelected ? Color.clear : ZKColors.textTertiary.opacity(0.5), lineWidth: 1.5)
-                        .frame(width: 18, height: 18)
-                    
-                    if isSelected {
-                        Circle()
-                            .fill(ZKColors.accentGradient)
-                            .frame(width: 18, height: 18)
-                        
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 6, height: 6)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.2), value: isSelected)
-                
-                Text(table.displayName)
-                    .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
-                    .lineLimit(1)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background {
-                if isSelected {
-                    ZKColors.accentGradient
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .matchedGeometryEffect(id: "CodeTableSelectedIndicator", in: namespace)
-                } else if isHovered {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.08))
-                }
-            }
-            .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
-    }
-}
-
-// SettingsGroup removed - using ZKSection from Components folder
-
-struct SettingsRadioButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .stroke(isSelected ? ZKColors.accent : ZKColors.textTertiary, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    
-                    if isSelected {
-                        Circle()
-                            .fill(ZKColors.accentGradient)
-                            .frame(width: 10, height: 10)
-                    }
-                }
-                
-                Text(title)
-                    .font(ZKTypography.body)
-                    .foregroundColor(isSelected ? ZKColors.textPrimary : ZKColors.textSecondary)
-                
-                Spacer()
-            }
-            .padding(.vertical, 4)
-        }
-        .buttonStyle(.plain)
-        .scaleEffect(isHovered ? 1.01 : 1.0)
-        .animation(ZKAnimations.easeOut, value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
         }
     }
 }

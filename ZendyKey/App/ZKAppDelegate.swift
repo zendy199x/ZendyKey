@@ -76,6 +76,11 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Application Lifecycle
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load Injection III for hot reload during development
+        #if DEBUG
+        Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/iOSInjection.bundle")?.load()
+        #endif
+        
         // Set shared instance for access from SwiftUI views
         ZKAppDelegate.shared = self
         
