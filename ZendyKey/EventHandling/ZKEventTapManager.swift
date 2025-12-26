@@ -70,6 +70,7 @@ class ZKEventTapManager {
     private struct PauseKeyState {
         var isHolding: Bool = false
         var lastKeyCode: UInt16 = 0
+        var hadOtherKeyPress: Bool = false  // Track if another key was pressed while holding (e.g., Ctrl+C)
     }
     
     // Temp off spelling state tracking
@@ -250,6 +251,8 @@ class ZKEventTapManager {
         }
 
         // Pause key handling (hold to temporarily switch to English)
+        // NOTE: This does NOT interfere with Ctrl+C because we don't consume the event.
+        // We just pause Vietnamese processing while the modifier is held.
         if pauseKeyEnabled && type == .flagsChanged {
             let flags = event.flags
             let isPauseKeyPressed: Bool
@@ -278,6 +281,7 @@ class ZKEventTapManager {
                 // Pause key pressed - switch to English temporarily
                 pauseKeyState.isHolding = true
                 pauseKeyState.lastKeyCode = pauseKeyCode
+                pauseKeyState.hadOtherKeyPress = false
                 let keyName = getKeyName(pauseKeyCode)
                 debugLogCallback?("⏸️ Pause key (\(keyName)) pressed - temporarily switching to English")
                 DispatchQueue.main.async { [weak self] in
@@ -292,6 +296,12 @@ class ZKEventTapManager {
                     self?.onPauseKeyUp?()
                 }
             }
+        }
+        
+        // Track if user presses any other key while holding pause modifier
+        // (kept for potential future use - e.g., combo detection)
+        if pauseKeyEnabled && pauseKeyState.isHolding && type == .keyDown {
+            pauseKeyState.hadOtherKeyPress = true
         }
         
         // Temp off spelling handling (hold to temporarily disable spell check)
@@ -478,6 +488,9 @@ class ZKEventTapManager {
         // Handle pause key with Option/Control - inject clean character directly
         // IMPORTANT: This must be BEFORE shouldProcessEvent because that returns false for Control/Option
         // This completely bypasses Vietnamese processing and avoids macOS special character interpretation
+        // NOTE: Only apply this for OPTION key, not Control key!
+        // - Option+char produces special characters (©, †, ¥) which we want to avoid
+        // - Control+char (like Ctrl+C) should pass through for terminal shortcuts
         if pauseKeyEnabled && pauseKeyState.isHolding && type == .keyDown {
             let keyCode = event.keyCode
             
@@ -492,17 +505,15 @@ class ZKEventTapManager {
             
             debugLogCallback?("🔑 PAUSE KEY INJECT: isHolding=\(pauseKeyState.isHolding), keyCode=\(keyCode), pauseKeyCode=\(pauseKeyCode)")
             
-            // Only handle Option and Control pause keys
-            if pauseKeyCode == 58 || pauseKeyCode == 59 {  // Option or Control key
-                // Create a new clean event without the pause modifier
+            // Only handle Option pause key - NOT Control!
+            // Control+char should pass through for terminal shortcuts (Ctrl+C, Ctrl+Z, etc.)
+            if pauseKeyCode == 58 {  // Option key ONLY
+                // Create a new clean event without the Option modifier
+                // This prevents macOS from outputting special characters like ©, †, ¥
                 if let cleanEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) {
-                    // Copy original flags but remove the pause modifier
+                    // Copy original flags but remove Option
                     var newFlags = event.flags
-                    if pauseKeyCode == 58 {
-                        newFlags.remove(.maskAlternate)
-                    } else if pauseKeyCode == 59 {
-                        newFlags.remove(.maskControl)
-                    }
+                    newFlags.remove(.maskAlternate)
                     cleanEvent.flags = newFlags
                     
                     // Mark this event so we recognize it and pass through on second encounter
@@ -510,11 +521,16 @@ class ZKEventTapManager {
                     
                     // Post the clean event and consume original
                     cleanEvent.post(tap: .cghidEventTap)
-                    debugLogCallback?("  ✅ Pause key: INJECTED clean character for keyCode \(keyCode)")
+                    debugLogCallback?("  ✅ Option pause key: INJECTED clean character for keyCode \(keyCode)")
                     return nil  // Consume original event
                 } else {
-                    debugLogCallback?("  ❌ Pause key: FAILED to create clean event")
+                    debugLogCallback?("  ❌ Option pause key: FAILED to create clean event")
                 }
+            } else if pauseKeyCode == 59 {  // Control key
+                // For Control key, pass through normally - don't strip the modifier
+                // This allows Ctrl+C, Ctrl+Z, etc. to work in terminal
+                debugLogCallback?("  ⏭️ Control pause key: passing through (Ctrl+char shortcuts work normally)")
+                return Unmanaged.passUnretained(event)
             } else {
                 debugLogCallback?("  ⏭️ Pause key: Skipping (pauseKeyCode \(pauseKeyCode) not handled)")
             }

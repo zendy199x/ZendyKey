@@ -247,8 +247,8 @@ struct AppearancePickerView: View {
     @Namespace private var animation
     
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+        HStack(spacing: 0) {
+            ForEach(Array(AppearanceMode.allCases.enumerated()), id: \.element) { index, mode in
                 AppearanceModeButton(
                     mode: mode,
                     isSelected: appearanceManager.currentMode == mode,
@@ -257,6 +257,14 @@ struct AppearancePickerView: View {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         appearanceManager.currentMode = mode
                     }
+                }
+                
+                // Add vertical divider between buttons (not at the end)
+                if index < AppearanceMode.allCases.count - 1 {
+                    Rectangle()
+                        .fill(ZKColors.glassBorder)
+                        .frame(width: 1)
+                        .padding(.vertical, 8)
                 }
             }
         }
