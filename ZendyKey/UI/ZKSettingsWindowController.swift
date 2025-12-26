@@ -12,9 +12,9 @@ import SwiftUI
 class ZKSettingsWindowController: NSWindowController {
 
     convenience init(selectedSection: SettingsSection = .general, onSave: @escaping (Preferences) -> Void) {
-        // Create window with modern style
+        // Create window with modern style - size matches ZKSettingsView frame
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 750, height: 550),
+            contentRect: NSRect(x: 0, y: 0, width: 850, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -24,7 +24,6 @@ class ZKSettingsWindowController: NSWindowController {
         window.title = "ZendyKey v\(version)"
         window.titlebarAppearsTransparent = false
         window.isReleasedWhenClosed = false
-        window.level = .floating
         window.center()
         
         // Apply appearance mode

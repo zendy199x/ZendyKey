@@ -80,6 +80,7 @@
 		E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9012345678F012345678901234 /* ZKSwitchButton.swift */; };
 		EA123456789F012345678901 /* ZKGridPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA123456789F012345678901 /* ZKGridPicker.swift */; };
 		EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB345678901F01234567890123456 /* ZKToggleRow.swift */; };
+		EC456789012G012345678901 /* ZKGradientButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC456789012G012345678901 /* ZKGradientButton.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -159,6 +160,7 @@
 		F9012345678F012345678901234 /* ZKSwitchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSwitchButton.swift; sourceTree = "<group>"; };
 		FA123456789F012345678901 /* ZKGridPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKGridPicker.swift; sourceTree = "<group>"; };
 		FB345678901F01234567890123456 /* ZKToggleRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKToggleRow.swift; sourceTree = "<group>"; };
+		FC456789012G012345678901 /* ZKGradientButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKGradientButton.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -352,6 +354,7 @@
 				F8901234567F01234567890123 /* ZKSection.swift */,
 				F9012345678F012345678901234 /* ZKSwitchButton.swift */,
 				FB345678901F01234567890123456 /* ZKToggleRow.swift */,
+				FC456789012G012345678901 /* ZKGradientButton.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -513,6 +516,7 @@
 				E8901234567F01234567890123 /* ZKSection.swift in Sources */,
 				E9012345678F012345678901234 /* ZKSwitchButton.swift in Sources */,
 				EB345678901F01234567890123456 /* ZKToggleRow.swift in Sources */,
+				EC456789012G012345678901 /* ZKGradientButton.swift in Sources */,
 				045D4A6B9D2615015828439D /* ZKOnScreenIndicator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

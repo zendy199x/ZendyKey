@@ -18,8 +18,10 @@ class ZKSoundManager {
         set { ZKSharedSettings.shared.beepOnToggle = newValue }
     }
     
-    // Volume control (0.0 to 1.0)
-    var volume: Float = 0.5
+    // Volume control - reads from preferences
+    var volume: Float {
+        Float(ZKSharedSettings.shared.beepVolume)
+    }
     
     // System sounds
     private let toggleOnSound = NSSound(named: "Pop")
@@ -27,10 +29,7 @@ class ZKSoundManager {
     private let typeClickSound = NSSound(named: "Morse")
     
     private init() {
-        // Set default volume for all sounds
-        toggleOnSound?.volume = volume
-        toggleOffSound?.volume = volume
-        typeClickSound?.volume = volume * 0.3 // Type clicks should be quieter
+        // Volume is now dynamically read from preferences
     }
     
     // MARK: - Public Methods
@@ -39,10 +38,13 @@ class ZKSoundManager {
     func playToggleSound(enabled: Bool) {
         guard isSoundEnabled else { return }
         
+        let currentVolume = volume
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             if enabled {
+                self?.toggleOnSound?.volume = currentVolume
                 self?.toggleOnSound?.play()
             } else {
+                self?.toggleOffSound?.volume = currentVolume
                 self?.toggleOffSound?.play()
             }
         }
@@ -52,7 +54,9 @@ class ZKSoundManager {
     func playTypeClick() {
         guard isSoundEnabled else { return }
         
+        let currentVolume = volume * 0.3  // Type clicks should be quieter
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            self?.typeClickSound?.volume = currentVolume
             self?.typeClickSound?.play()
         }
     }
@@ -73,14 +77,6 @@ class ZKSoundManager {
         DispatchQueue.global(qos: .userInteractive).async {
             NSSound.beep()
         }
-    }
-    
-    /// Update volume for all sounds
-    func setVolume(_ newVolume: Float) {
-        volume = max(0.0, min(1.0, newVolume))
-        toggleOnSound?.volume = volume
-        toggleOffSound?.volume = volume
-        typeClickSound?.volume = volume * 0.3
     }
 }
 

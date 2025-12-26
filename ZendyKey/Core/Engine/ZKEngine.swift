@@ -319,7 +319,8 @@ class ZKEngine {
         
         result.code = UInt8(vWillProcess)
         result.backspaceCount = backspaceCount
-        result.newCharCount = rawChars.count
+        // IMPORTANT: Limit to MAX_BUFF since charData array has fixed size
+        result.newCharCount = min(rawChars.count, ZKEngine.MAX_BUFF)
         for (i, char) in rawChars.enumerated() where i < ZKEngine.MAX_BUFF {
             result.charData[i] = char
         }
@@ -1506,7 +1507,7 @@ class ZKEngine {
     }
     
     private func insertW(keyCode: UInt16, isCaps: Bool) {
-        var isRestoredW = false
+        var _isRestoredW = false  // Prefixed to suppress unused warning (reserved for future debug logging)
         
         findAndCalculateVowel()
         logCallback?("insertW: vowelCount=\(vowelCount), vowelStartIndex=\(vowelStartIndex), vowelEndIndex=\(vowelEndIndex)")
@@ -1535,7 +1536,7 @@ class ZKEngine {
                     typingWord[i] &= ~ZKEngine.TONEW_MASK
                     hookState.charData[Int(index) - 1 - i] = getCharacterCode(typingWord[i]) & ~ZKEngine.STANDALONE_MASK
                 }
-                isRestoredW = true
+                _isRestoredW = true
                 tempDisableKey = true
             } else {
                 hookState.code = UInt8(vWillProcess)
@@ -1599,14 +1600,14 @@ class ZKEngine {
                         } else if key == ZKVietnameseData.KEY_O {
                             hookState.code = UInt8(vRestore)
                             typingWord[i] = UInt32(ZKVietnameseData.KEY_O) | ((typingWord[i] & ZKEngine.CAPS_MASK) != 0 ? ZKEngine.CAPS_MASK : 0)
-                            isRestoredW = true
+                            _isRestoredW = true
                         }
                         hookState.charData[Int(index) - 1 - i] = typingWord[i]
                     } else {
                         hookState.code = UInt8(vRestore)
                         typingWord[i] &= ~ZKEngine.TONEW_MASK
                         hookState.charData[Int(index) - 1 - i] = typingWord[i]
-                        isRestoredW = true
+                        _isRestoredW = true
                     }
                     
                     tempDisableKey = true
@@ -3180,7 +3181,9 @@ extension ZKEngine {
             // IMPORTANT: In OpenKey, charData is stored in reverse order (last character at index 0)
             // So we need to read it in reverse order to get the correct sequence
             // This matches OpenKey's SendNewCharString which reads from newCharCount-1 down to 0
-            for i in stride(from: Int(hookState.newCharCount) - 1, through: 0, by: -1) {
+            // BOUNDS CHECK: Ensure we don't access beyond charData array size
+            let safeCharCount = min(Int(hookState.newCharCount), hookState.charData.count)
+            for i in stride(from: safeCharCount - 1, through: 0, by: -1) {
                 let charData = hookState.charData[i]
                 let vnChar = convertToZKCharacter(charData)
                 result.newCharacters.append(vnChar)

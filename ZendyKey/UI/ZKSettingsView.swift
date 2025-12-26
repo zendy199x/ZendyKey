@@ -8,6 +8,15 @@
 
 import SwiftUI
 
+// MARK: - Global Helper Functions
+
+/// Open macOS Accessibility Settings
+private func openAccessibilitySettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        NSWorkspace.shared.open(url)
+    }
+}
+
 // MARK: - Settings Section
 
 enum SettingsSection: String, CaseIterable, Identifiable {
@@ -175,10 +184,52 @@ struct ZKSettingsView: View {
 struct GeneralSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
     @State private var isVietnameseEnabled: Bool = true
+    @State private var hasAccessibilityPermission: Bool = AXIsProcessTrusted()
+    @State private var showAccessibilitySection: Bool = !AXIsProcessTrusted()
+    @State private var hideDelayTimer: Timer? = nil
+    private let permissionCheckTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Accessibility Permission - with slide animation
+                if showAccessibilitySection {
+                    ZKSection("Quyền truy cập") {
+                        ZKToggleRow(
+                            icon: hasAccessibilityPermission ? "checkmark.shield.fill" : "xmark.shield.fill",
+                            iconBackground: AnyShapeStyle(hasAccessibilityPermission ? Color.green.opacity(0.15) : Color.red.opacity(0.15)),
+                            title: hasAccessibilityPermission ? "Đã cấp quyền Accessibility" : "Chưa cấp quyền Accessibility",
+                            subtitle: "ZendyKey cần quyền này để nhận phím từ bàn phím"
+                        ) {
+                            if !hasAccessibilityPermission {
+                                ZKGradientButton.primary(
+                                    title: "Mở Cài đặt",
+                                    icon: "gearshape"
+                                ) {
+                                    openAccessibilitySettings()
+                                }
+                            }
+                        }
+                        // Override icon color using overlay
+                        .overlay(alignment: .topLeading) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(hasAccessibilityPermission ? Color.green.opacity(0.15) : Color.red.opacity(0.15))
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: hasAccessibilityPermission ? "checkmark.shield.fill" : "xmark.shield.fill")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(hasAccessibilityPermission ? .green : .red)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                }
+                
                 // Vietnamese Toggle + Sound
                 ZKSection("Chế độ gõ") {
                     VStack(alignment: .leading, spacing: 12) {
@@ -259,6 +310,30 @@ struct GeneralSettingsSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
+        }
+        .onReceive(permissionCheckTimer) { _ in
+            let currentPermission = AXIsProcessTrusted()
+            
+            // Only act when permission state changes
+            if currentPermission != hasAccessibilityPermission {
+                hasAccessibilityPermission = currentPermission
+                
+                // If permission is now granted, wait 30 seconds before hiding
+                if currentPermission {
+                    hideDelayTimer?.invalidate()
+                    hideDelayTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { _ in
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            showAccessibilitySection = false
+                        }
+                    }
+                } else {
+                    // If permission is revoked, show immediately
+                    hideDelayTimer?.invalidate()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showAccessibilitySection = true
+                    }
+                }
+            }
         }
     }
 }
@@ -385,6 +460,54 @@ struct HotkeysSettingsSection: View {
                             Toggle("", isOn: $viewModel.preferences.beepOnToggle.animation(ZKAnimations.spring))
                                 .toggleStyle(ZKToggleStyle())
                                 .labelsHidden()
+                        }
+                        
+                        // Volume slider - show when beep is enabled
+                        if viewModel.preferences.beepOnToggle {
+                            Divider()
+                                .padding(.vertical, 4)
+                            
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(ZKColors.accent.opacity(0.12))
+                                        .frame(width: 36, height: 36)
+                                    
+                                    Image(systemName: viewModel.preferences.beepVolume > 0.5 ? "speaker.wave.3.fill" : (viewModel.preferences.beepVolume > 0 ? "speaker.wave.1.fill" : "speaker.slash.fill"))
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(ZKColors.accent)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Âm lượng")
+                                            .font(ZKTypography.body)
+                                            .foregroundColor(ZKColors.textPrimary)
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(Int(viewModel.preferences.beepVolume * 100))%")
+                                            .font(ZKTypography.caption)
+                                            .foregroundColor(ZKColors.textSecondary)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background(
+                                                Capsule()
+                                                    .fill(ZKColors.accent.opacity(0.15))
+                                            )
+                                    }
+                                    
+                                    Slider(value: $viewModel.preferences.beepVolume, in: 0.0...1.0, step: 0.1)
+                                        .tint(ZKColors.accent)
+                                        .onChange(of: viewModel.preferences.beepVolume) { newValue in
+                                            // Clamp minimum to 10%
+                                            if newValue < 0.1 && newValue >= 0 {
+                                                viewModel.preferences.beepVolume = 0.1
+                                            }
+                                        }
+                                }
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
                 }
@@ -1334,106 +1457,19 @@ struct AdvancedSettingsSection: View {
 struct AppearanceSettingsSection: View {
     @ObservedObject var viewModel: ZKPreferencesViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @State private var hasAccessibilityPermission = AXIsProcessTrusted()
     @State private var showResetConfirmation = false
-    
-    private let permissionCheckTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Accessibility Permission
-                ZKSection( "Quyền truy cập") {
-                    HStack {
-                        Image(systemName: hasAccessibilityPermission ? "checkmark.shield.fill" : "xmark.shield.fill")
-                            .foregroundColor(hasAccessibilityPermission ? .green : .red)
-                            .font(.system(size: 18))
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(hasAccessibilityPermission ? "Đã cấp quyền Accessibility" : "Chưa cấp quyền Accessibility")
-                                .font(.subheadline)
-                                .foregroundColor(hasAccessibilityPermission ? .primary : .red)
-                            
-                            Text("ZendyKey cần quyền này để nhận phím từ bàn phím")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        if !hasAccessibilityPermission {
-                            Button("Mở Cài đặt") {
-                                openAccessibilitySettings()
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                }
-                
                 // Theme selection (Dark/Light/System)
                 ZKSection( "Giao diện") {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Chế độ màu:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
                         AppearancePickerView()
-                            .padding(.top, 4)
                         
                         Text("Chọn chế độ sáng, tối hoặc tự động theo hệ thống")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-                }
-                
-                // Sound Settings
-                ZKSection( "Âm thanh") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Phát âm thanh khi chuyển ngôn ngữ", isOn: $viewModel.preferences.beepOnToggle)
-                        
-                        Text("Phát âm thanh khi bật/tắt tiếng Việt")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // Menu Bar Icon Settings
-                ZKSection( "Icon thanh Menu") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Icon size slider
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Kích thước icon:")
-                                    .font(.subheadline)
-                                Spacer()
-                                Text("\(Int(viewModel.preferences.menuBarIconSize)) px")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(
-                                        Capsule()
-                                            .fill(ZKColors.accent.opacity(0.15))
-                                    )
-                            }
-                            
-                            Slider(value: $viewModel.preferences.menuBarIconSize, in: 12.0...20.0, step: 1.0)
-                            
-                            Text("Điều chỉnh kích thước icon trên thanh menu (12-20 pixels)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Divider()
-                        
-                        // Vietnamese menubar icon toggle
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Hiển thị icon chữ V khi ở chế độ tiếng Việt", isOn: $viewModel.preferences.useVietnameseMenubarIcon)
-                            
-                            Text("Khi bật, icon sẽ chuyển thành chữ V khi đang ở chế độ tiếng Việt")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
                     }
                 }
                 
@@ -1449,28 +1485,6 @@ struct AppearanceSettingsSection: View {
                 
                 ZKSection( "Khởi động") {
                     Toggle("Khởi động cùng hệ thống", isOn: $viewModel.preferences.startAtLogin)
-                }
-                
-                // Beep Volume Slider
-                if viewModel.preferences.beepOnToggle {
-                    ZKSection( "Âm lượng") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Âm lượng:")
-                                    .font(.subheadline)
-                                Spacer()
-                                Text("\(Int(viewModel.preferences.beepVolume * 100))%")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Slider(value: $viewModel.preferences.beepVolume, in: 0.0...1.0, step: 0.1)
-                            
-                            Text("Điều chỉnh âm lượng khi chuyển ngôn ngữ")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
                 
                 // Reset to Defaults
@@ -1496,9 +1510,6 @@ struct AppearanceSettingsSection: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
-        .onReceive(permissionCheckTimer) { _ in
-            hasAccessibilityPermission = AXIsProcessTrusted()
-        }
         .overlay {
             if showResetConfirmation {
                 ZKSettingsResetConfirmationOverlay(
@@ -1515,12 +1526,6 @@ struct AppearanceSettingsSection: View {
             }
         }
         .animation(.spring(response: 0.3), value: showResetConfirmation)
-    }
-    
-    private func openAccessibilitySettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
     }
     
     private func resetToDefaults() {
