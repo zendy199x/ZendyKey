@@ -153,7 +153,7 @@ class ZKMacroManager {
     
     /// Save macros to file
     func saveToFile(path: String) -> Bool {
-        var content = ";Compatible OpenKey Macro Data file for UniKey*** version=1 ***\n"
+        var content = ";Compatible ZendyKey Macro Data file for UniKey*** version=1 ***\n"
         
         for (_, macro) in macroMap {
             content += "\(macro.macroText):\(macro.macroContent)\n"

@@ -123,7 +123,7 @@ build_app() {
         exit 1
     fi
     
-    # Default: Build unsigned (like GoNhanh - no Developer Account needed)
+    # Default: Build unsigned (no Developer Account needed)
     # User can still sign by setting SIGNING_IDENTITY environment variable
     if [ -n "$SIGNING_IDENTITY" ] && [ "$SIGNING_IDENTITY" != "-" ]; then
         log_info "Using custom signing identity: $SIGNING_IDENTITY"
@@ -145,7 +145,7 @@ build_app() {
         log_info "Building unsigned (no Developer Account required)..."
         log_info "User may need to run: xattr -cr /Applications/ZendyKey.app"
         
-        # Build without signing for development/personal use (like GoNhanh)
+        # Build without signing for development/personal use
         xcodebuild \
             -project "$XCODEPROJ" \
             -scheme "$SCHEME" \
@@ -366,7 +366,18 @@ build_input_method() {
         -configuration Release \
         -derivedDataPath "$BUILD_DIR/DerivedData" \
         MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS_VERSION" \
+        CODE_SIGN_IDENTITY="-" \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
         build
+    
+    # Copy built IM app to build directory
+    local built_im="$BUILD_DIR/DerivedData/Build/Products/Release/ZendyKeyIM.app"
+    if [ -d "$built_im" ]; then
+        cp -R "$built_im" "$BUILD_DIR/ZendyKeyIM.app"
+        xattr -cr "$BUILD_DIR/ZendyKeyIM.app" 2>/dev/null || true
+        log_success "ZendyKeyIM.app copied to $BUILD_DIR"
+    fi
     
     log_success "ZendyKeyIM built successfully"
 }

@@ -110,8 +110,8 @@ struct Preferences: Codable {
     var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
     var freeToneEnabled: Bool = false            // Free tone placement without validation
     var perAppModeEnabled: Bool = false          // Remember language mode per application
-    var rememberCodeTablePerApp: Bool = true     // Remember code table per app (OpenKey vRememberCode)
-    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard (OpenKey vOtherLanguage)
+    var rememberCodeTablePerApp: Bool = true     // Remember code table per app
+    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard
     
     // Restore key configuration
     var restoreOnEscape: Bool = true             // Enable restore to raw keys

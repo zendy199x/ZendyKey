@@ -592,7 +592,6 @@ class ZKCharacterInjector {
         var utf16Chars = Array(unicodeString.utf16)
 
         // Use the official keyboardSetUnicodeString instance method (Swift 3+ API)
-        // This is the same method used by OpenKey
         keyDown.keyboardSetUnicodeString(stringLength: utf16Chars.count, unicodeString: &utf16Chars)
         keyUp.keyboardSetUnicodeString(stringLength: utf16Chars.count, unicodeString: &utf16Chars)
 

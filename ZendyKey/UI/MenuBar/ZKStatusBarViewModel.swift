@@ -152,7 +152,7 @@ class ZKStatusBarViewModel: ObservableObject {
         // Notify Settings panel to update with animation
         NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
         
-        // Save code table for current app (Remember Code Table Per App - OpenKey vRememberCode)
+        // Save code table for current app (Remember Code Table Per App)
         saveCodeTableForCurrentApp()
         
         log("✅ CodeTable set to \(table.displayName)")

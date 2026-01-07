@@ -20,7 +20,7 @@ private func openAccessibilitySettings() {
 // MARK: - Settings Section
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general = "Cơ bản"
+    case general = "Gõ phím"
     case hotkeys = "Phím tắt"
     case quickTyping = "Gõ nhanh"
     case advanced = "Nâng cao"
@@ -36,7 +36,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .general: return "gearshape"
+        case .general: return "keyboard"
         case .hotkeys: return "command.square"
         case .statistics: return "chart.bar.xaxis"
         case .quickTyping: return "keyboard"
@@ -1281,7 +1281,7 @@ struct AdvancedSettingsSection: View {
                         
                         Divider()
                         
-                        // Remember Code Table Per App (OpenKey vRememberCode)
+                        // Remember Code Table Per App
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle("Nhớ bảng mã theo ứng dụng", isOn: $viewModel.preferences.rememberCodeTablePerApp)
 
@@ -1292,7 +1292,7 @@ struct AdvancedSettingsSection: View {
                         
                         Divider()
                         
-                        // Preserve Vietnamese with Other Language (OpenKey vOtherLanguage)
+                        // Preserve Vietnamese with Other Language
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle("Giữ trạng thái khi dùng bàn phím khác", isOn: $viewModel.preferences.preserveVietnameseModeWithOtherLanguage)
 
@@ -2311,12 +2311,12 @@ class InputSourcesViewModel: ObservableObject {
             logInfo(message, source: "ZKInputSourceManager")
         }
 
-        // Listen for input source changes
+        // Listen for input source changes from ZKInputSourceObserver (singleton - always running)
         notificationObserver = NotificationCenter.default.addObserver(
-            forName: .inputSourceDidChange,
+            forName: .zkInputSourceChanged,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
+        ) { [weak self] _ in
             // Auto-refresh when input source changes
             self?.refresh()
         }

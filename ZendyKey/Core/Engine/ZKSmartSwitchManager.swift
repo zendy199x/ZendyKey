@@ -79,9 +79,9 @@ class ZKSmartSwitchManager {
         }
     }
     
-    // MARK: - Binary Format (OpenKey compatible)
+    // MARK: - Binary Format
     
-    /// Initialize from binary data (OpenKey format)
+    /// Initialize from binary data
     func initFromBinaryData(_ data: Data) {
         guard data.count >= 2 else { return }
         
@@ -117,7 +117,7 @@ class ZKSmartSwitchManager {
         }
     }
     
-    /// Convert to binary data (OpenKey format)
+    /// Convert to binary data
     func toBinaryData() -> Data {
         var data = Data()
         

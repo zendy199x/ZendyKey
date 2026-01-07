@@ -100,6 +100,9 @@ enum ZKSharedSettingsKey: String {
 
     // Input Source Management
     case inputSourceConfig = "ZendyKey.inputSourceConfig"
+    
+    // User Dictionary (for spell check)
+    case userDictionary = "ZendyKey.userDictionary"
 }
 
 /// Manager for shared settings between ZendyKey and ZKIMMain
@@ -473,7 +476,7 @@ class ZKSharedSettings {
 
     var rememberCodeTablePerApp: Bool {
         get {
-            // Default to true if not explicitly set (like OpenKey)
+            // Default to true if not explicitly set
             if defaults.object(forKey: ZKSharedSettingsKey.rememberCodeTablePerApp.rawValue) == nil {
                 return true
             }
@@ -484,7 +487,7 @@ class ZKSharedSettings {
 
     var preserveVietnameseModeWithOtherLanguage: Bool {
         get {
-            // Default to true if not explicitly set (like OpenKey vOtherLanguage)
+            // Default to true if not explicitly set (like vOtherLanguage)
             if defaults.object(forKey: ZKSharedSettingsKey.preserveVietnameseModeWithOtherLanguage.rawValue) == nil {
                 return true
             }
@@ -659,6 +662,44 @@ class ZKSharedSettings {
 
     func setInputSourceConfig(_ data: Data) {
         defaults.set(data, forKey: ZKSharedSettingsKey.inputSourceConfig.rawValue)
+    }
+    
+    // MARK: - User Dictionary (Spell Check)
+    
+    /// Get user dictionary words
+    func getUserDictionary() -> Set<String> {
+        guard let data = defaults.data(forKey: ZKSharedSettingsKey.userDictionary.rawValue),
+              let words = try? JSONDecoder().decode(Set<String>.self, from: data) else {
+            return []
+        }
+        return words
+    }
+    
+    /// Set user dictionary words
+    func setUserDictionary(_ words: Set<String>) {
+        if let data = try? JSONEncoder().encode(words) {
+            defaults.set(data, forKey: ZKSharedSettingsKey.userDictionary.rawValue)
+        }
+    }
+    
+    /// Add a word to user dictionary
+    func addToUserDictionary(_ word: String) {
+        var words = getUserDictionary()
+        words.insert(word.lowercased().trimmingCharacters(in: .whitespaces))
+        setUserDictionary(words)
+    }
+    
+    /// Remove a word from user dictionary
+    func removeFromUserDictionary(_ word: String) {
+        var words = getUserDictionary()
+        words.remove(word.lowercased().trimmingCharacters(in: .whitespaces))
+        setUserDictionary(words)
+    }
+    
+    /// Check if a word is in user dictionary
+    func isWordInUserDictionary(_ word: String) -> Bool {
+        let normalized = word.lowercased().trimmingCharacters(in: .whitespaces)
+        return getUserDictionary().contains(normalized)
     }
 
     // MARK: - Sync
@@ -1036,6 +1077,58 @@ class ZKSharedSettings {
 
         // Now send ONE notification
         notifySettingsChanged()
+    }
+    
+    // MARK: - Force Write for Updates
+    
+    /// Force write all current settings to plist file
+    /// Called by SparkleUpdateDelegate before app restart to ensure settings are saved
+    func forceWriteCurrentSettings() {
+        // Load current preferences and re-save them
+        let prefs = loadPreferences()
+        
+        // Get the plist file path in App Group container
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: kZendyKeyAppGroup) else {
+            logWarning("Cannot get App Group container URL for force write", source: "ZKSharedSettings")
+            return
+        }
+        
+        let prefsURL = containerURL.appendingPathComponent("Library/Preferences/\(kZendyKeyAppGroup).plist")
+        
+        // Read existing plist or create new one
+        var plistDict: [String: Any] = [:]
+        if let data = try? Data(contentsOf: prefsURL),
+           let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
+            plistDict = dict
+        }
+        
+        // Write all important settings
+        plistDict[ZKSharedSettingsKey.inputMethod.rawValue] = prefs.inputMethod.rawValue
+        plistDict[ZKSharedSettingsKey.codeTable.rawValue] = prefs.codeTable.rawValue
+        plistDict[ZKSharedSettingsKey.modernStyle.rawValue] = prefs.modernStyle
+        plistDict[ZKSharedSettingsKey.spellCheckEnabled.rawValue] = prefs.spellCheckEnabled
+        plistDict[ZKSharedSettingsKey.imkitUseMarkedText.rawValue] = prefs.imkitUseMarkedText
+        plistDict[ZKSharedSettingsKey.quickTelexEnabled.rawValue] = prefs.quickTelexEnabled
+        plistDict[ZKSharedSettingsKey.macroEnabled.rawValue] = prefs.macroEnabled
+        plistDict[ZKSharedSettingsKey.freeMarkEnabled.rawValue] = prefs.freeMarkEnabled
+        plistDict[ZKSharedSettingsKey.restoreIfWrongSpelling.rawValue] = prefs.restoreIfWrongSpelling
+        
+        // Write to file
+        do {
+            let data = try PropertyListSerialization.data(fromPropertyList: plistDict, format: .binary, options: 0)
+            try data.write(to: prefsURL)
+            logSuccess("Force wrote all settings to plist", source: "ZKSharedSettings")
+        } catch {
+            logError("Failed to force write plist: \(error)", source: "ZKSharedSettings")
+        }
+        
+        // Also synchronize UserDefaults
+        defaults.synchronize()
+        CFPreferencesSynchronize(
+            kZendyKeyAppGroup as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        )
     }
 }
 

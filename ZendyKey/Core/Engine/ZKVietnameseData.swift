@@ -2,7 +2,7 @@
 //  ZKVietnameseData.swift
 //  ZendyKey
 //
-//  Vietnamese language data tables - Ported from OpenKey Vietnamese.cpp
+//  Vietnamese language data tables
 //
 
 import Foundation
@@ -744,6 +744,99 @@ class ZKVietnameseData {
             }
             return char
         }
+        return nil
+    }
+    
+    // MARK: - Edit-in-place Helpers (from PHTV v1.5.6)
+    
+    /// Map ASCII character to key code (reverse lookup for keyCodeToChar)
+    func charToKeyCode(_ char: Character) -> UInt16? {
+        let charToKey: [Character: UInt16] = [
+            "a": ZKVietnameseData.KEY_A, "b": ZKVietnameseData.KEY_B, "c": ZKVietnameseData.KEY_C,
+            "d": ZKVietnameseData.KEY_D, "e": ZKVietnameseData.KEY_E, "f": ZKVietnameseData.KEY_F,
+            "g": ZKVietnameseData.KEY_G, "h": ZKVietnameseData.KEY_H, "i": ZKVietnameseData.KEY_I,
+            "j": ZKVietnameseData.KEY_J, "k": ZKVietnameseData.KEY_K, "l": ZKVietnameseData.KEY_L,
+            "m": ZKVietnameseData.KEY_M, "n": ZKVietnameseData.KEY_N, "o": ZKVietnameseData.KEY_O,
+            "p": ZKVietnameseData.KEY_P, "q": ZKVietnameseData.KEY_Q, "r": ZKVietnameseData.KEY_R,
+            "s": ZKVietnameseData.KEY_S, "t": ZKVietnameseData.KEY_T, "u": ZKVietnameseData.KEY_U,
+            "v": ZKVietnameseData.KEY_V, "w": ZKVietnameseData.KEY_W, "x": ZKVietnameseData.KEY_X,
+            "y": ZKVietnameseData.KEY_Y, "z": ZKVietnameseData.KEY_Z,
+            "A": ZKVietnameseData.KEY_A, "B": ZKVietnameseData.KEY_B, "C": ZKVietnameseData.KEY_C,
+            "D": ZKVietnameseData.KEY_D, "E": ZKVietnameseData.KEY_E, "F": ZKVietnameseData.KEY_F,
+            "G": ZKVietnameseData.KEY_G, "H": ZKVietnameseData.KEY_H, "I": ZKVietnameseData.KEY_I,
+            "J": ZKVietnameseData.KEY_J, "K": ZKVietnameseData.KEY_K, "L": ZKVietnameseData.KEY_L,
+            "M": ZKVietnameseData.KEY_M, "N": ZKVietnameseData.KEY_N, "O": ZKVietnameseData.KEY_O,
+            "P": ZKVietnameseData.KEY_P, "Q": ZKVietnameseData.KEY_Q, "R": ZKVietnameseData.KEY_R,
+            "S": ZKVietnameseData.KEY_S, "T": ZKVietnameseData.KEY_T, "U": ZKVietnameseData.KEY_U,
+            "V": ZKVietnameseData.KEY_V, "W": ZKVietnameseData.KEY_W, "X": ZKVietnameseData.KEY_X,
+            "Y": ZKVietnameseData.KEY_Y, "Z": ZKVietnameseData.KEY_Z,
+            "0": ZKVietnameseData.KEY_0, "1": ZKVietnameseData.KEY_1, "2": ZKVietnameseData.KEY_2,
+            "3": ZKVietnameseData.KEY_3, "4": ZKVietnameseData.KEY_4, "5": ZKVietnameseData.KEY_5,
+            "6": ZKVietnameseData.KEY_6, "7": ZKVietnameseData.KEY_7, "8": ZKVietnameseData.KEY_8,
+            "9": ZKVietnameseData.KEY_9
+        ]
+        return charToKey[char]
+    }
+    
+    /// Map Unicode Vietnamese character to Engine format (keyCode + flags)
+    /// Used for edit-in-place: reconstruct engine state from displayed text
+    /// - Parameter ch: Unicode character value (UInt16)
+    /// - Returns: Engine character with TONE/MARK flags, or nil if not Vietnamese
+    func unicodeToEngineChar(_ ch: UInt16) -> UInt32? {
+        // Build reverse lookup from unicodeCodeTable
+        // Iterate all entries to find matching Unicode value
+        for (engineKey, unicodeArray) in unicodeCodeTable {
+            for (index, unicode) in unicodeArray.enumerated() {
+                if unicode == UInt32(ch) {
+                    // Found match - reconstruct engine format
+                    var result = engineKey
+                    
+                    // Determine caps from index (even = CAPS, odd = lowercase)
+                    if index % 2 == 0 {
+                        result |= 0x10000 // CAPS_MASK
+                    }
+                    
+                    // Add CHAR_CODE_MASK to indicate it's from code table
+                    result |= 0x2000000 // CHAR_CODE_MASK
+                    
+                    return result
+                }
+            }
+        }
+        
+        // Check simple Vietnamese chars not in code table
+        // Lowercase vowels: a, e, i, o, u, y
+        let simpleVowels: [UInt16: UInt16] = [
+            0x0061: ZKVietnameseData.KEY_A, // a
+            0x0065: ZKVietnameseData.KEY_E, // e
+            0x0069: ZKVietnameseData.KEY_I, // i
+            0x006F: ZKVietnameseData.KEY_O, // o
+            0x0075: ZKVietnameseData.KEY_U, // u
+            0x0079: ZKVietnameseData.KEY_Y, // y
+            0x0041: ZKVietnameseData.KEY_A, // A
+            0x0045: ZKVietnameseData.KEY_E, // E
+            0x0049: ZKVietnameseData.KEY_I, // I
+            0x004F: ZKVietnameseData.KEY_O, // O
+            0x0055: ZKVietnameseData.KEY_U, // U
+            0x0059: ZKVietnameseData.KEY_Y  // Y
+        ]
+        
+        if let keyCode = simpleVowels[ch] {
+            var result = UInt32(keyCode)
+            if ch >= 0x41 && ch <= 0x5A { // A-Z
+                result |= 0x10000 // CAPS_MASK
+            }
+            return result
+        }
+        
+        // Check đ/Đ special case
+        if ch == 0x0111 { // đ
+            return UInt32(ZKVietnameseData.KEY_D) | 0x20000 // TONE_MASK means đ
+        }
+        if ch == 0x0110 { // Đ
+            return UInt32(ZKVietnameseData.KEY_D) | 0x20000 | 0x10000 // TONE_MASK + CAPS
+        }
+        
         return nil
     }
 }

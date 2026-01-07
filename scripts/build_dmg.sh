@@ -52,6 +52,21 @@ mkdir -p "${DMG_DIR}"
 # Copy app
 cp -R "${APP_PATH}" "${DMG_DIR}/"
 
+# Copy ZendyKeyIM.app (Input Method) if exists
+IM_PATH=""
+if [ -d "${BUILD_DIR}/DerivedData/Build/Products/Release/ZendyKeyIM.app" ]; then
+    IM_PATH="${BUILD_DIR}/DerivedData/Build/Products/Release/ZendyKeyIM.app"
+elif [ -d "${BUILD_DIR}/ZendyKeyIM.app" ]; then
+    IM_PATH="${BUILD_DIR}/ZendyKeyIM.app"
+fi
+
+if [ -n "$IM_PATH" ] && [ -d "$IM_PATH" ]; then
+    echo -e "${BLUE}📦 Including ZendyKeyIM (Input Method)${NC}"
+    cp -R "${IM_PATH}" "${DMG_DIR}/"
+    xattr -cr "${DMG_DIR}/ZendyKeyIM.app" 2>/dev/null || true
+    echo -e "${GREEN}   ✓ ZendyKeyIM.app added to DMG${NC}"
+fi
+
 # Step 2: Remove quarantine attribute to avoid "prohibited" overlay on icon
 echo -e "${YELLOW}🔓 Removing quarantine attribute...${NC}"
 xattr -cr "${DMG_DIR}/${APP_NAME}.app" 2>/dev/null || true

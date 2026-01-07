@@ -173,6 +173,10 @@ struct WindowTitleRule: Codable, Identifiable {
     /// Override: Text sending method (nil = use default/auto-detect)
     let textSendingMethod: TextSendingMethod?
     
+    /// Override: Disable Vietnamese input for this context (nil = use default, true = disable, false = enable)
+    /// When enabled, ZendyKey will automatically disable Vietnamese typing when this rule matches
+    let disableVietnameseInput: Bool?
+    
     /// Description for debugging
     let description: String?
     
@@ -222,7 +226,8 @@ struct WindowTitleRule: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, name, bundleIdPattern, titlePattern, matchMode, isEnabled
         case useMarkedText, hasMarkedTextIssues, commitDelay
-        case injectionMethod, injectionDelays, textSendingMethod, description
+        case injectionMethod, injectionDelays, textSendingMethod
+        case disableVietnameseInput, description
     }
     
     init(from decoder: Decoder) throws {
@@ -238,6 +243,7 @@ struct WindowTitleRule: Codable, Identifiable {
         commitDelay = try container.decodeIfPresent(UInt32.self, forKey: .commitDelay)
         injectionDelays = try container.decodeIfPresent([UInt32].self, forKey: .injectionDelays)
         textSendingMethod = try container.decodeIfPresent(TextSendingMethod.self, forKey: .textSendingMethod)
+        disableVietnameseInput = try container.decodeIfPresent(Bool.self, forKey: .disableVietnameseInput)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         
         // Decode injection method from string
@@ -267,6 +273,7 @@ struct WindowTitleRule: Codable, Identifiable {
         try container.encodeIfPresent(commitDelay, forKey: .commitDelay)
         try container.encodeIfPresent(injectionDelays, forKey: .injectionDelays)
         try container.encodeIfPresent(textSendingMethod, forKey: .textSendingMethod)
+        try container.encodeIfPresent(disableVietnameseInput, forKey: .disableVietnameseInput)
         try container.encodeIfPresent(description, forKey: .description)
         
         // Encode injection method as string
@@ -296,6 +303,7 @@ struct WindowTitleRule: Codable, Identifiable {
         injectionMethod: InjectionMethod? = nil,
         injectionDelays: [UInt32]? = nil,
         textSendingMethod: TextSendingMethod? = nil,
+        disableVietnameseInput: Bool? = nil,
         description: String? = nil
     ) {
         self.id = UUID()
@@ -310,6 +318,7 @@ struct WindowTitleRule: Codable, Identifiable {
         self.injectionMethod = injectionMethod
         self.injectionDelays = injectionDelays
         self.textSendingMethod = textSendingMethod
+        self.disableVietnameseInput = disableVietnameseInput
         self.description = description
     }
 }
@@ -324,7 +333,7 @@ class AppBehaviorDetector {
     
     // MARK: - Cache
     
-    // PERFORMANCE: TTL-based cache with 100ms expiry (inspired by PHTV)
+    // PERFORMANCE: TTL-based cache with 100ms expiry
     private var cachedBundleId: String?
     private var cachedWindowTitle: String?
     private var cachedMatchedRule: WindowTitleRule?
@@ -333,6 +342,26 @@ class AppBehaviorDetector {
     private var cachedInjectionMethod: InjectionMethodInfo?
     private var cacheTimestamp: CFAbsoluteTime = 0
     private let cacheTTL: CFAbsoluteTime = 0.1  // 100ms TTL
+    
+    // MARK: - Confirmed Injection Method (Set by mouse click or app switch)
+    
+    /// Injection method that has been confirmed to work for current context
+    /// Set when user clicks (mouse up) or switches apps, cleared on significant context changes
+    private var confirmedInjectionMethod: InjectionMethodInfo?
+    private var confirmedBundleId: String?
+    private var confirmedElementSignature: String?
+    
+    // MARK: - Overlay App Provider
+    
+    /// Callback to get overlay app name (set by ZKAppDelegate)
+    /// Returns overlay app name (e.g., "Spotlight") if overlay is active, nil otherwise
+    var overlayAppNameProvider: (() -> String?)?
+    
+    // MARK: - Vietnamese Input Override State
+    
+    /// Stores the Vietnamese state BEFORE a Window Title Rule disabled it
+    /// Used to restore state when rule no longer matches
+    private var preRuleVietnameseState: Bool?
     
     // MARK: - Window Title Rules
     
@@ -644,6 +673,90 @@ class AppBehaviorDetector {
         cachedIMKitBehavior = nil
         cachedInjectionMethod = nil
         cacheTimestamp = 0  // Reset timestamp to force fresh detection
+    }
+    
+    // MARK: - Confirmed Injection Method Management
+    
+    /// Set confirmed injection method after successful typing or on mouse click
+    /// This is used to "lock in" the injection method when we know the user context
+    func setConfirmedInjectionMethod(_ method: InjectionMethodInfo, forBundleId bundleId: String, elementSignature: String?) {
+        confirmedInjectionMethod = method
+        confirmedBundleId = bundleId
+        confirmedElementSignature = elementSignature
+    }
+    
+    /// Get confirmed injection method if still valid for current context
+    func getConfirmedInjectionMethod() -> InjectionMethodInfo? {
+        guard let bundleId = getCurrentBundleId(),
+              let confirmedBundle = confirmedBundleId,
+              bundleId == confirmedBundle else {
+            return nil
+        }
+        return confirmedInjectionMethod
+    }
+    
+    /// Clear confirmed injection method (call on significant context change)
+    func clearConfirmedInjectionMethod() {
+        confirmedInjectionMethod = nil
+        confirmedBundleId = nil
+        confirmedElementSignature = nil
+    }
+    
+    // MARK: - Vietnamese Input Override
+    
+    /// Get Vietnamese input override for current context
+    /// Returns: true = force enable, false = force disable, nil = use default
+    func getVietnameseInputOverride() -> Bool? {
+        // Check for overlay app first (Spotlight, Raycast, Alfred)
+        if let overlayName = overlayAppNameProvider?() {
+            // Log overlay detection
+            sharedLogInfo("[AppBehavior] Overlay app detected: \(overlayName)")
+            // Overlay apps should use Vietnamese if enabled globally
+            return nil  // Use default (don't override)
+        }
+        
+        // Check Window Title Rules
+        if let rule = findMatchingRule() {
+            return rule.disableVietnameseInput != nil ? !(rule.disableVietnameseInput!) : nil
+        }
+        
+        return nil
+    }
+    
+    /// Get Vietnamese input override for a specific app (without checking window title)
+    func getVietnameseInputOverrideForApp(bundleId: String) -> Bool? {
+        // Check built-in rules that match by bundleId only (empty titlePattern)
+        for rule in Self.builtInWindowTitleRules where rule.isEnabled {
+            if rule.titlePattern.isEmpty && !rule.bundleIdPattern.isEmpty {
+                if rule.matches(bundleId: bundleId, windowTitle: "") {
+                    return rule.disableVietnameseInput != nil ? !(rule.disableVietnameseInput!) : nil
+                }
+            }
+        }
+        
+        // Also check custom rules
+        for rule in customRules where rule.isEnabled {
+            if rule.titlePattern.isEmpty && !rule.bundleIdPattern.isEmpty {
+                if rule.matches(bundleId: bundleId, windowTitle: "") {
+                    return rule.disableVietnameseInput != nil ? !(rule.disableVietnameseInput!) : nil
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Pre-rule Vietnamese state management (for restoring state when rule no longer matches)
+    func setPreRuleVietnameseState(_ state: Bool) {
+        preRuleVietnameseState = state
+    }
+    
+    func getPreRuleVietnameseState() -> Bool? {
+        return preRuleVietnameseState
+    }
+    
+    func clearPreRuleVietnameseState() {
+        preRuleVietnameseState = nil
     }
     
     // MARK: - Window Title Detection

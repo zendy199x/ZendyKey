@@ -109,7 +109,7 @@ class ZKWordBuffer {
     }
 
     /// Rebuild word state from current keystrokes without processing input
-    /// This is similar to OpenKey's checkSpelling() - it analyzes the keystroke buffer
+    /// It analyzes the keystroke buffer
     /// and rebuilds the word state (consonants, vowels, tone) from scratch
     func rebuildStateFromKeyStrokes(inputProcessor: ZKInputProcessor, logCallback: ((String) -> Void)? = nil) {
         logCallback?("    → rebuildStateFromKeyStrokes: \(keyStrokes.count) keystrokes, wordStartIndex=\(wordStartIndex)")

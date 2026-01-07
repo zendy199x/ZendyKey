@@ -23,10 +23,11 @@ class ZKSoundManager {
         Float(ZKSharedSettings.shared.beepVolume)
     }
     
-    // System sounds
+    // System sounds - cached to prevent issues with rapid toggling
     private let toggleOnSound = NSSound(named: "Pop")
     private let toggleOffSound = NSSound(named: "Tink")
     private let typeClickSound = NSSound(named: "Morse")
+    private var currentSound: NSSound?
     
     private init() {
         // Volume is now dynamically read from preferences
@@ -38,15 +39,16 @@ class ZKSoundManager {
     func playToggleSound(enabled: Bool) {
         guard isSoundEnabled else { return }
         
+        // Stop any currently playing sound to handle rapid toggling
+        currentSound?.stop()
+        
         let currentVolume = volume
-        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
-            if enabled {
-                self?.toggleOnSound?.volume = currentVolume
-                self?.toggleOnSound?.play()
-            } else {
-                self?.toggleOffSound?.volume = currentVolume
-                self?.toggleOffSound?.play()
-            }
+        let sound = enabled ? toggleOnSound : toggleOffSound
+        currentSound = sound
+        
+        DispatchQueue.global(qos: .userInteractive).async {
+            sound?.volume = currentVolume
+            sound?.play()
         }
     }
     

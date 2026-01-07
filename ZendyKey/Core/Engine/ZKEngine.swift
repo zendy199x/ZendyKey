@@ -8,7 +8,7 @@
 import Foundation
 import Cocoa
 
-/// Main Vietnamese typing engine - Direct port from OpenKey
+/// Main Vietnamese typing engine
 class ZKEngine {
     
     // MARK: - Constants (from DataType.h)
@@ -147,6 +147,22 @@ class ZKEngine {
     /// Example: "toto" → "tôt" (second 'o' triggers circumflex on first 'o')
     /// Used for auto-restore: if no mark follows, restore on space
     var hadVowelTriggeredCircumflex = false
+    
+    /// Tracks if ANY Telex transform was applied (tone, mark, or stroke)
+    /// Used for whitelist-based auto-restore to English words
+    var hadTelexTransform = false
+    
+    /// Tracks if circumflex was REVERTED by third vowel (aa→â, aaa→aa)
+    /// Example: "dataa" → "dât" (after 4th key), typing 5th 'a' reverts to "data"
+    var hadCircumflexRevert = false
+    
+    /// Stores raw_input string when telex double pattern is detected (BEFORE modification)
+    var telexDoubleRaw: String?
+    var telexDoubleRawLen = 0
+    
+    /// Tracks if we just saw sentence-ending punctuation (. ! ?)
+    /// Only set pending_capitalize when space/Enter follows
+    var sawSentenceEnding = false
     
     /// Buffer was just restored from DELETE - clear on next letter input
     /// This prevents typing after restore from appending to old buffer
@@ -399,13 +415,124 @@ class ZKEngine {
             return true
         }
         
+        // ENHANCED: Check Telex doubles whitelist
+        // If word has Telex transforms and is in telex_doubles list → check English dict
+        if hadTelexTransform {
+            let rawStr = getRawInputString()
+            
+            if ZKTelexDoubles.shared.contains(rawStr) {
+                // Check if buffer is invalid Vietnamese and raw is in English dict
+                let rawInEnglishDict = ZKEnglishDictionary.shared.isEnglishWord(rawStr)
+                let bufferInvalidVN = isBufferInvalidVietnamese()
+                
+                // W at end pattern: foreign words like moscow, warsaw, saw, law
+                let wAtEnd = rawInput.last?.keyCode == ZKVietnameseData.KEY_W
+                
+                if wAtEnd && rawInEnglishDict {
+                    logCallback?("isForeignWordPattern: w-at-end + English dict match: \(rawStr)")
+                    return true
+                }
+                
+                if bufferInvalidVN && rawInEnglishDict {
+                    logCallback?("isForeignWordPattern: buffer invalid VN + English dict match: \(rawStr)")
+                    return true
+                }
+            }
+            
+            // Fallback: check if raw input is directly in English dictionary
+            let rawStr2 = getRawInputString()
+            if ZKEnglishDictionary.shared.isEnglishWord(rawStr2) && isBufferInvalidVietnamese() {
+                logCallback?("isForeignWordPattern: raw in English dict + buffer invalid: \(rawStr2)")
+                return true
+            }
+        }
+        
         return false
+    }
+    
+    /// Check if current buffer represents invalid Vietnamese
+    /// Returns true if buffer has Vietnamese diacritics but doesn't form a valid word
+    private func isBufferInvalidVietnamese() -> Bool {
+        // Get buffer as string
+        guard index > 0 else { return false }
+        
+        var hasVietnameseChar = false
+        for i in 0..<Int(index) {
+            let charData = typingWord[i]
+            let hasTone = (charData & ZKEngine.MARK_MASK) != 0
+            let hasMark = (charData & ZKEngine.TONE_MASK) != 0 || (charData & ZKEngine.TONEW_MASK) != 0
+            if hasTone || hasMark {
+                hasVietnameseChar = true
+                break
+            }
+        }
+        
+        // If no Vietnamese chars, not invalid (just plain ASCII)
+        guard hasVietnameseChar else { return false }
+        
+        // ENHANCED: Check Vietnamese dictionary
+        // If buffer forms a known Vietnamese word, it's valid (not invalid)
+        let bufferStr = getBufferAsString()
+        if ZKVietnameseDictionary.shared.isVietnameseWord(bufferStr) {
+            logCallback?("isBufferInvalidVietnamese: buffer '\(bufferStr)' is valid Vietnamese word")
+            return false  // Valid Vietnamese word, not invalid
+        }
+        
+        // Check spelling via engine's built-in check
+        if vCheckSpelling == 1 {
+            // If tempDisableKey is true, spelling check failed → invalid
+            return tempDisableKey
+        }
+        
+        return false
+    }
+    
+    /// Get current buffer as Vietnamese string
+    private func getBufferAsString() -> String {
+        var result = ""
+        for i in 0..<Int(index) {
+            let charData = typingWord[i]
+            let keyCode = UInt16(charData & ZKEngine.CHAR_MASK)
+            let hasTone = (charData & ZKEngine.TONE_MASK) != 0
+            let hasToneW = (charData & ZKEngine.TONEW_MASK) != 0
+            let mark = charData & ZKEngine.MARK_MASK
+            let isCaps = (charData & ZKEngine.CAPS_MASK) != 0
+            
+            // Get Unicode character from code table
+            let unicode = vietnameseData.getUnicodeChar(
+                keyCode: keyCode,
+                hasTone: hasTone,
+                hasToneW: hasToneW,
+                mark: mark,
+                isCaps: isCaps
+            )
+            
+            if let scalar = UnicodeScalar(unicode) {
+                result.append(Character(scalar))
+            }
+        }
+        return result.lowercased()
+    }
+    
+    /// Get raw input as string
+    private func getRawInputString() -> String {
+        var result = ""
+        for (keyCode, isCaps, _) in rawInput {
+            if let char = vietnameseData.keyCodeToChar(keyCode, isCaps: isCaps) {
+                result.append(char)
+            }
+        }
+        return result.lowercased()
     }
     
     /// Clear raw input state and all advanced tracking flags
     private func clearRawInputState() {
         rawInput.removeAll()
         hadAnyTransform = false
+        hadTelexTransform = false
+        hadCircumflexRevert = false
+        telexDoubleRaw = nil
+        telexDoubleRawLen = 0
         pendingBrevePos = nil
         pendingHornPos = nil
         hadMarkRevert = false
@@ -784,7 +911,7 @@ class ZKEngine {
         
         // Insert or replace key for macro
         if vUseMacro == 1 {
-            let macroKeyBefore = hookState.macroKey
+            let _ = hookState.macroKey  // Store for potential macro debugging
             if hookState.code == UInt8(vDoNothing) {
                 hookState.macroKey.append(UInt32(keyCode) | (isCaps ? ZKEngine.CAPS_MASK : 0))
             } else if hookState.code == UInt8(vWillProcess) || hookState.code == UInt8(vRestore) {
@@ -909,7 +1036,7 @@ class ZKEngine {
         
         logCallback?("handleMarkKey: keyCode=\(keyCode), index=\(index), buffer=\(getCurrentWord())")
         
-        // Ignore "qu" case - OpenKey: checkCorrectVowel
+        // Ignore "qu" case
         if index >= 2 && chr(Int(index) - 1) == ZKVietnameseData.KEY_U && chr(Int(index) - 2) == ZKVietnameseData.KEY_Q {
             logCallback?("  → Skipping: qu case")
             insertKey(keyCode: keyCode, isCaps: isCaps)
@@ -939,7 +1066,7 @@ class ZKEngine {
                     }
                 }
                 
-                // Limit mark for end consonant: "C", "T" - OpenKey: checkCorrectVowel
+                // Limit mark for end consonant: "C", "T"
                 // Cannot use huyền (F), hỏi (R), ngã (X) with end consonant C or T
                 if isCorrect && charset.count > 1 {
                     let isMarkFRX = (vInputType != 1) ? 
@@ -957,7 +1084,7 @@ class ZKEngine {
                     }
                 }
                 
-                // Check duplicate consonant - OpenKey: checkCorrectVowel
+                // Check duplicate consonant
                 // IMPORTANT: Only check if k+1 is within current buffer (k+1 < index)
                 // This fixes a bug where stale data in typingWord could cause false positives
                 if isCorrect && k >= 0 && k + 1 < Int(index) {
@@ -1048,7 +1175,7 @@ class ZKEngine {
     private func handleVowelKey(keyCode: UInt16, isCaps: Bool) {
         logCallback?("handleVowelKey: keyCode=\(keyCode), index=\(index), tempDisableKey=\(tempDisableKey), buffer=\(getCurrentWord())")
         
-        // Ignore "qu" case - OpenKey: checkCorrectVowel
+        // Ignore "qu" case
         if index >= 2 && chr(Int(index) - 1) == ZKVietnameseData.KEY_U && chr(Int(index) - 2) == ZKVietnameseData.KEY_Q {
             insertKey(keyCode: keyCode, isCaps: isCaps)
             return
@@ -1507,8 +1634,6 @@ class ZKEngine {
     }
     
     private func insertW(keyCode: UInt16, isCaps: Bool) {
-        var _isRestoredW = false  // Prefixed to suppress unused warning (reserved for future debug logging)
-        
         findAndCalculateVowel()
         logCallback?("insertW: vowelCount=\(vowelCount), vowelStartIndex=\(vowelStartIndex), vowelEndIndex=\(vowelEndIndex)")
         
@@ -1536,7 +1661,6 @@ class ZKEngine {
                     typingWord[i] &= ~ZKEngine.TONEW_MASK
                     hookState.charData[Int(index) - 1 - i] = getCharacterCode(typingWord[i]) & ~ZKEngine.STANDALONE_MASK
                 }
-                _isRestoredW = true
                 tempDisableKey = true
             } else {
                 hookState.code = UInt8(vWillProcess)
@@ -1600,14 +1724,12 @@ class ZKEngine {
                         } else if key == ZKVietnameseData.KEY_O {
                             hookState.code = UInt8(vRestore)
                             typingWord[i] = UInt32(ZKVietnameseData.KEY_O) | ((typingWord[i] & ZKEngine.CAPS_MASK) != 0 ? ZKEngine.CAPS_MASK : 0)
-                            _isRestoredW = true
                         }
                         hookState.charData[Int(index) - 1 - i] = typingWord[i]
                     } else {
                         hookState.code = UInt8(vRestore)
                         typingWord[i] &= ~ZKEngine.TONEW_MASK
                         hookState.charData[Int(index) - 1 - i] = typingWord[i]
-                        _isRestoredW = true
                     }
                     
                     tempDisableKey = true
@@ -1805,7 +1927,7 @@ class ZKEngine {
             if k > j { // has vowel
                 spellingVowelOK = false
                 
-                // Check correct combined vowel - OpenKey: forceCheckVowel
+                // Check correct combined vowel
                 if k - j > 1 && forceCheckVowel {
                     let firstVowelKey = chr(j)
                     if let vowelSet = vietnameseData.vowelCombine[firstVowelKey] {
@@ -1845,7 +1967,7 @@ class ZKEngine {
                     spellingVowelOK = true
                 }
                 
-                // Check last consonant - MUST be inside "if k > j" block (OpenKey behavior)
+                // Check last consonant - MUST be inside "if k > j" block
                 for endConsonant in vietnameseData.endConsonantTable {
                     var isMatch = true
                     var jj = 0
@@ -1906,7 +2028,7 @@ class ZKEngine {
     }
     
     func chr(_ idx: Int) -> UInt16 {
-        // Match OpenKey behavior: directly access TypingWord without bounds check
+        // Behavior: directly access TypingWord without bounds check
         // This is intentional to match the original C++ implementation
         if idx < 0 || idx >= typingWord.count {
             return 0
@@ -2065,7 +2187,7 @@ class ZKEngine {
         findAndCalculateVowel()
         vowelWillSetMark = 0
         
-        // IMPORTANT: Auto-fix "ưo" → "ươ" case (OpenKey checkGrammar logic)
+        // IMPORTANT: Auto-fix "ưo" → "ươ" case
         // If we have "uo" pattern where one has TONEW_MASK but the other doesn't,
         // add TONEW_MASK to both to make "ươ"
         if vowelCount >= 2 {
@@ -2128,7 +2250,6 @@ class ZKEngine {
                 kkVar -= 1
             }
             // IMPORTANT: Set backspaceCount correctly for restore case
-            // This matches OpenKey behavior where backspaceCount is set from handleModernMark/handleOldMark
             // but we need to ensure it matches the actual charData we're sending
             hookState.backspaceCount = Int(index) - vowelStartIndex
             tempDisableKey = true
@@ -2195,9 +2316,8 @@ class ZKEngine {
             }
             // NOTE: "oa", "oe" cases are handled by the general rule below:
             // "If 1st vowel is 'o' or 'u' -> mark on last vowel"
-            // This matches OpenKey behavior where "khoa" + r = "khoả" (mark on 'a')
-            // The old ZendyKey code incorrectly checked for end consonant, but OpenKey doesn't do that.
-            // uo -> mark on 'o'
+            // This behavior where "khoa" + r = "khoả" (mark on 'a')
+            // The old ZendyKey code incorrectly checked for end consonant
             else if v1 == ZKVietnameseData.KEY_U && v2 == ZKVietnameseData.KEY_O {
                 vowelWillSetMark = vowelStartIndex + 1
                 hookState.backspaceCount = Int(index) - vowelWillSetMark
@@ -2221,7 +2341,7 @@ class ZKEngine {
         
         // Rule 3.1: Special combinations with circumflex/horn (iê, yê, uô, ươ)
         // NOTE: This rule applies regardless of vowelCount (2 or 3 vowels)
-        // OpenKey: rule 3.1 - checks for iê, yê, uô, ươ patterns
+        // Checks for iê, yê, uô, ươ patterns
         // Example: "nhiều" (nhieu + f) → dấu huyền đặt vào "ê" không phải "u"
         let rule3v1 = chr(vowelStartIndex)
         let rule3v1Data = typingWord[vowelStartIndex]
@@ -2357,7 +2477,6 @@ class ZKEngine {
         // IMPORTANT: Only check ê and ơ - NOT ư or ô!
         // For "ươ" pattern (like "người"), the tone goes on "ơ", not "ư"
         // For "uô" pattern (like "uống"), rule 2 already handles it (mark on VSI+1)
-        // This matches OpenKey behavior exactly
         for i in vowelStartIndex...vowelEndIndex {
             let key = chr(i)
             let hasTone = (typingWord[i] & ZKEngine.TONE_MASK) != 0      // Has circumflex (^)
@@ -2522,7 +2641,7 @@ class ZKEngine {
             index = UInt8(lastState.count)
             stateIndex = UInt8(lastState.count)
             
-            // OpenKey behavior: After restoring a normal word, DO NOT call checkSpelling()
+            // Behavior: After restoring a normal word, DO NOT call checkSpelling()
             // This is intentional - it enables "free mark" feature by keeping tempDisableKey = false
             // (which was reset by startNewSession() before calling restoreLastTypingState())
             // This allows users to add marks to the restored word freely
@@ -2552,7 +2671,7 @@ class ZKEngine {
     /// Convert internal code to actual character code based on code table
     func getCharacterCode(_ data: UInt32) -> UInt32 {
         let capsElem = (data & ZKEngine.CAPS_MASK) != 0 ? 0 : 1
-        var key = data & ZKEngine.CHAR_MASK
+        let key = data & ZKEngine.CHAR_MASK
         
         // Build lookup key with tone/horn flags
         var lookupKey: UInt32 = key
@@ -2587,7 +2706,6 @@ class ZKEngine {
             //   For marks on vowels WITH circumflex/breve AND mark, no offset needed
             // - KEY_O | 0x80000: [Ó, ó, Ò, ò, Ỏ, ỏ, Õ, õ, Ọ, ọ] - 10 elements
             //   For marks on PLAIN vowels (no circumflex/horn), no offset needed
-            let keyCode = UInt16(key)
             var markLookupKey = lookupKey
             
             if (data & ZKEngine.TONE_MASK) != 0 || (data & ZKEngine.TONEW_MASK) != 0 {
@@ -3005,7 +3123,7 @@ extension ZKEngine {
         
         // IMPORTANT: Save current word to typingStates BEFORE resetting
         // This enables "free mark" feature - user can add marks to previous word after backspace
-        // OpenKey behavior: saveWord() is called before startNewSession()
+        // Behavior: saveWord() is called before startNewSession()
 
         // If we already have spaces saved, save them first
         if spaceCount > 0 {
@@ -3150,7 +3268,7 @@ extension ZKEngine {
         var result = ProcessResult()
         
         // Check if we should consume the key
-        // IMPORTANT: In OpenKey, normal keys (consonants, vowels) are consumed and stored in buffer
+        // IMPORTANT: Normal keys (consonants, vowels) are consumed and stored in buffer
         // but they are NOT injected immediately (vDoNothing with extCode=3)
         // They are only injected when a special key triggers processing (vWillProcess)
         // 
@@ -3178,9 +3296,9 @@ extension ZKEngine {
             }
         } else {
             // Convert character data to ZKCharacter array
-            // IMPORTANT: In OpenKey, charData is stored in reverse order (last character at index 0)
+            // IMPORTANT: CharData is stored in reverse order (last character at index 0)
             // So we need to read it in reverse order to get the correct sequence
-            // This matches OpenKey's SendNewCharString which reads from newCharCount-1 down to 0
+            // Which reads from newCharCount-1 down to 0
             // BOUNDS CHECK: Ensure we don't access beyond charData array size
             let safeCharCount = min(Int(hookState.newCharCount), hookState.charData.count)
             for i in stride(from: safeCharCount - 1, through: 0, by: -1) {
@@ -3190,9 +3308,8 @@ extension ZKEngine {
             }
         }
         
-        // IMPORTANT: When vRestore, OpenKey adds the current key to the output
+        // IMPORTANT: Adds the current key to the output
         // This is how toggle works: restore the original character AND add the current key
-        // See OpenKey's SendNewCharString: "if is restore" block
         if hookState.code == UInt8(vRestore) || hookState.code == UInt8(vRestoreAndStartNewSession) {
             if let character = currentCharacter {
                 // Add the current key to output
@@ -3328,5 +3445,81 @@ extension ZKEngine {
         case ZKVietnameseData.KEY_X: return .x
         default: return nil
         }
+    }
+    
+    // MARK: - Edit-in-place Feature (from PHTV v1.5.6)
+    
+    /// Map Unicode character to Engine char with flags
+    /// Used for edit-in-place feature to reconstruct engine state from existing text
+    /// - Parameter ch: Unicode character (UInt16)
+    /// - Returns: Engine character with appropriate flags (CAPS, TONE, MARK, etc.)
+    func getEngineCharFromUnicode(_ ch: UInt16) -> UInt32 {
+        // Check Vietnamese character tables
+        if let result = vietnameseData.unicodeToEngineChar(ch) {
+            return result
+        }
+        
+        // Check if simple ASCII (a-z, A-Z)
+        if ch >= 65 && ch <= 90 { // A-Z
+            let keyCode = vietnameseData.charToKeyCode(Character(UnicodeScalar(ch)!))
+            if let kc = keyCode {
+                return UInt32(kc) | ZKEngine.CAPS_MASK
+            }
+        }
+        if ch >= 97 && ch <= 122 { // a-z
+            let keyCode = vietnameseData.charToKeyCode(Character(UnicodeScalar(ch)!))
+            if let kc = keyCode {
+                return UInt32(kc)
+            }
+        }
+        
+        // Fallback: Pure character
+        return UInt32(ch) | ZKEngine.PURE_CHARACTER_MASK
+    }
+    
+    /// Restore engine session with existing word (Edit-in-place)
+    /// Allows user to click on or navigate to a word and continue editing marks/tones
+    /// - Parameter word: The existing word to restore engine state from
+    func restoreSessionWithWord(_ word: String) {
+        // 1. Capture pending keys (user might have typed while detecting)
+        var pendingKeys: [UInt32] = []
+        for i in 0..<Int(stateIndex) {
+            pendingKeys.append(keyStates[i])
+        }
+        
+        // 2. Start fresh session
+        startNewSession()
+        
+        // 3. Populate engine state from word
+        for (i, char) in word.enumerated() where i < ZKEngine.MAX_BUFF {
+            guard let scalar = char.unicodeScalars.first else { continue }
+            let ch = UInt16(scalar.value)
+            let engineChar = getEngineCharFromUnicode(ch)
+            
+            typingWord[i] = engineChar
+            keyStates[Int(stateIndex)] = engineChar
+            
+            index = UInt8(i + 1)
+            stateIndex += 1
+        }
+        
+        // 4. Save word state
+        saveWord()
+        
+        // 5. Check spelling for subsequent operations
+        checkSpelling()
+        
+        // 6. Replay pending keys (if any)
+        if !pendingKeys.isEmpty {
+            logCallback?("[Edit-in-place] Replaying \(pendingKeys.count) pending keys")
+            for keyData in pendingKeys {
+                let keyCode = UInt16(keyData & ZKEngine.CHAR_MASK)
+                let isCaps = (keyData & ZKEngine.CAPS_MASK) != 0
+                let char = vietnameseData.keyCodeToChar(keyCode, isCaps: isCaps) ?? Character(" ")
+                _ = handleKeyEvent(keyCode: keyCode, character: char, isUppercase: isCaps, hasOtherModifier: false)
+            }
+        }
+        
+        logCallback?("[Edit-in-place] Restored session with word: \(word) (index=\(index))")
     }
 }

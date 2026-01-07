@@ -3,7 +3,7 @@
 //  ZendyKey
 //
 //  Reusable horizontal segment picker with gradient selection and sliding animation
-//  Used for: Input Method picker and other segmented selections
+//  Used for: Input Method picker, Theme picker and other segmented selections
 //
 
 import SwiftUI
@@ -14,8 +14,10 @@ struct ZKSegmentPicker<T: Hashable>: View {
     @Binding var selection: T
     let options: [T]
     let titleForOption: (T) -> String
+    var iconForOption: ((T) -> String)? = nil
     var descriptionForOption: ((T) -> String)? = nil
     var showDividers: Bool = true
+    var style: ZKSegmentPickerStyle = .compact
     
     @Namespace private var animation
     
@@ -26,7 +28,9 @@ struct ZKSegmentPicker<T: Hashable>: View {
                 ForEach(Array(options.enumerated()), id: \.element) { index, option in
                     ZKSegmentButton(
                         title: titleForOption(option),
+                        icon: iconForOption?(option),
                         isSelected: selection == option,
+                        style: style,
                         namespace: animation
                     ) {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
@@ -39,16 +43,17 @@ struct ZKSegmentPicker<T: Hashable>: View {
                         Rectangle()
                             .fill(ZKColors.glassBorder)
                             .frame(width: 1)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, style == .large ? 12 : 6)
                     }
                 }
             }
+            .padding(style == .large ? 6 : 4)  // Inner padding like PHTV design
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: style == .large ? 14 : 10)
                     .fill(ZKColors.glassBackground.opacity(0.5))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: style == .large ? 14 : 10)
                     .stroke(ZKColors.glassBorder, lineWidth: 1)
             )
             
@@ -63,11 +68,20 @@ struct ZKSegmentPicker<T: Hashable>: View {
     }
 }
 
+// MARK: - Style
+
+enum ZKSegmentPickerStyle {
+    case compact   // For input method picker (text only, small)
+    case large     // For theme picker (icon + text, PHTV style)
+}
+
 // MARK: - ZKSegmentButton
 
 private struct ZKSegmentButton: View {
     let title: String
+    let icon: String?
     let isSelected: Bool
+    let style: ZKSegmentPickerStyle
     var namespace: Namespace.ID
     let action: () -> Void
     
@@ -75,29 +89,39 @@ private struct ZKSegmentButton: View {
     
     var body: some View {
         Button(action: action) {
-            // ZStack with hidden semibold text to reserve width and prevent layout shift
-            ZStack {
-                // Hidden semibold text to reserve maximum width
-                Text(title)
-                    .font(ZKTypography.body.weight(.semibold))
-                    .opacity(0)
+            VStack(spacing: style == .large ? 6 : 2) {
+                // Icon (for large style)
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: style == .large ? 22 : 16, weight: .medium))
+                        .foregroundColor(isSelected ? .white : ZKColors.textSecondary)
+                }
                 
-                // Visible text with actual styling
-                Text(title)
-                    .font(ZKTypography.body.weight(isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
+                // ZStack with hidden semibold text to reserve width and prevent layout shift
+                ZStack {
+                    // Hidden semibold text to reserve maximum width
+                    Text(title)
+                        .font(style == .large ? ZKTypography.body.weight(.semibold) : ZKTypography.caption.weight(.semibold))
+                        .opacity(0)
+                    
+                    // Visible text with actual styling
+                    Text(title)
+                        .font(style == .large ? ZKTypography.body.weight(isSelected ? .semibold : .regular) : ZKTypography.caption.weight(isSelected ? .semibold : .regular))
+                        .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
+                }
             }
-            .frame(minWidth: 80)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(minWidth: style == .large ? 90 : 70)
+            .padding(.horizontal, style == .large ? 16 : 12)
+            .padding(.vertical, style == .large ? 12 : 8)
             .background {
                 if isSelected {
                     ZKColors.accentGradient
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .clipShape(RoundedRectangle(cornerRadius: style == .large ? 10 : 6))
                         .matchedGeometryEffect(id: "SelectedIndicator", in: namespace)
+                        .shadow(color: ZKColors.accent.opacity(0.3), radius: 8, x: 0, y: 2)
                 } else if isHovered {
                     Color.white.opacity(0.08)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .clipShape(RoundedRectangle(cornerRadius: style == .large ? 10 : 6))
                 }
             }
             .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
@@ -119,28 +143,59 @@ extension ZKSegmentPicker where T == InputMethod {
         self._selection = selection
         self.options = InputMethod.orderedCases
         self.titleForOption = { $0.displayName }
+        self.iconForOption = nil
         self.descriptionForOption = showDescription ? { $0.description } : nil
         self.showDividers = showDividers
+        self.style = .compact
+    }
+}
+
+// MARK: - Convenience Initializer for AppearanceMode (Theme Picker)
+
+extension ZKSegmentPicker where T == Int {
+    /// Create a theme/appearance picker with icon + text (PHTV style)
+    /// Values: 0 = system/auto, 1 = dark, 2 = light
+    static func themePicker(selection: Binding<Int>) -> some View {
+        ZKSegmentPicker(
+            selection: selection,
+            options: [0, 1, 2],
+            titleForOption: { mode in
+                switch mode {
+                case 0: return "Tự động"
+                case 1: return "Tối"
+                case 2: return "Sáng"
+                default: return ""
+                }
+            },
+            iconForOption: { mode in
+                switch mode {
+                case 0: return "circle.lefthalf.filled"
+                case 1: return "moon.fill"
+                case 2: return "sun.max.fill"
+                default: return "circle"
+                }
+            },
+            descriptionForOption: { _ in
+                "Chọn chế độ sáng, tối hoặc tự động theo hệ thống"
+            },
+            showDividers: true,
+            style: .large
+        )
     }
 }
 
 // MARK: - Preview
 
 #Preview("ZKSegmentPicker") {
-    VStack(spacing: 20) {
+    VStack(spacing: 30) {
+        // Theme picker (PHTV style with icons)
+        ZKSegmentPicker<Int>.themePicker(selection: .constant(0))
+        
         // InputMethod picker with description
         ZKSegmentPicker(selection: .constant(.telex))
         
         // InputMethod picker without description
         ZKSegmentPicker(selection: .constant(.vni), showDescription: false)
-        
-        // Custom options with description
-        ZKSegmentPicker(
-            selection: .constant(InputMethod.viqr),
-            options: InputMethod.orderedCases,
-            titleForOption: { $0.displayName },
-            descriptionForOption: { $0.description }
-        )
     }
     .padding(40)
     .background(Color(hex: "1a1a2e"))

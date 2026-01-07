@@ -39,7 +39,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     private var switchZendyKeyHotkeyMonitor: Any?
     private var switchZendyKeyGlobalHotkeyMonitor: Any?
     private var updaterController: SPUStandardUpdaterController?
+    private var sparkleUpdateDelegate: ZKSparkleUpdateDelegate?
     private var onboardingWindow: NSWindow?
+    private var tempOffToolbarGlobalHotkeyMonitor: Any?
 
     // MARK: - Initialization
 
@@ -137,6 +139,12 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Setup Vietnamese toggle notifications (for Settings integration)
         setupVietnameseToggleObservers()
         
+        // Setup temp off toolbar
+        setupTempOffToolbar()
+        
+        // Load Vietnamese dictionary if spell checking is enabled
+        setupSpellCheckDictionary()
+        
         // Show onboarding on first launch
         showOnboardingIfNeeded()
         
@@ -189,7 +197,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func showOnboarding() {
-        // Observe onboarding completion notification (like GoNhanh pattern)
+        // Observe onboarding completion notification
         NotificationCenter.default.addObserver(
             forName: .onboardingCompleted,
             object: nil,
@@ -212,7 +220,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Create onboarding window if not exists (like GoNhanh pattern)
+        // Create onboarding window if not exists
         if onboardingWindow == nil {
             let view = ZKOnboardingView()
             let controller = NSHostingController(rootView: view)
@@ -980,6 +988,9 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             // Use resetForAppSwitch() which assumes typing mid-sentence to prevent
             // Forward Delete from deleting text on the right of cursor
             self.keyboardHandler?.resetForAppSwitch()
+            
+            // Clear confirmed injection method on app switch (context changed)
+            AppBehaviorDetector.shared.clearConfirmedInjectionMethod()
 
             // Handle Smart Switch - auto switch language per app
             self.handleSmartSwitch(notification: notification)
@@ -988,10 +999,17 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         debugWindowController?.logEvent("  ✅ App switch observer registered")
+        
+        // Inject overlay app provider into AppBehaviorDetector
+        AppBehaviorDetector.shared.overlayAppNameProvider = {
+            return ZKOverlayAppDetector.shared.getVisibleOverlayAppName()
+        }
+        debugWindowController?.logEvent("  ✅ Overlay app provider injected into AppBehaviorDetector")
 
         // Setup overlay detector callback to restore language when overlay closes
         setupOverlayDetectorCallback()
     }
+
 
     /// Setup callback for overlay visibility changes
     private func setupOverlayDetectorCallback() {
@@ -1060,7 +1078,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               let bundleId = app.bundleIdentifier else { return }
         
-        // Handle per-app code table restore (OpenKey vRememberCode feature)
+        // Handle per-app code table restore
         statusBarManager?.viewModel.restoreCodeTableForApp(bundleId: bundleId)
         
         guard handler.smartSwitchEnabled else { return }
@@ -1179,7 +1197,10 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
             debugWindowController?.logEvent("   ✅ Rule: \(rule.name) (pattern: \"\(rule.titlePattern)\")")
         }
         
-        debugWindowController?.logEvent("   → Engine reset, mid-sentence mode")
+        // Set confirmed injection method on mouse click (context is now known)
+        detector.setConfirmedInjectionMethod(injectionInfo, forBundleId: bundleId, elementSignature: elementRole)
+        
+        debugWindowController?.logEvent("   → Engine reset, confirmed injection: \(injectionMethodName)")
     }
 
     private func setupZKInputSourceManager() {
@@ -1293,22 +1314,73 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
 
 
     private func setupSparkleUpdater() {
-        do {
-            // Initialize Sparkle updater controller
-            // This will automatically check for updates based on Info.plist settings:
-            // - SUFeedURL: appcast feed URL
-            // - SUPublicEDKey: public key for signature verification
-            // - SUEnableAutomaticChecks: enable automatic update checks
-            // - SUScheduledCheckInterval: check interval in seconds (86400 = 24 hours)
-            updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-            
-            debugWindowController?.logEvent("✅ Sparkle auto-update initialized")
-            debugWindowController?.logEvent("   Feed URL: \(Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "Not configured")")
-            debugWindowController?.logEvent("   Auto-check: \(Bundle.main.object(forInfoDictionaryKey: "SUEnableAutomaticChecks") as? Bool ?? false)")
-            
-        } catch {
-            debugWindowController?.logEvent("❌ Failed to initialize Sparkle: \(error)")
+        // Create custom delegate for pre-update settings backup
+        sparkleUpdateDelegate = ZKSparkleUpdateDelegate()
+        sparkleUpdateDelegate?.debugLogCallback = { [weak self] message in
+            self?.debugWindowController?.logEvent(message)
         }
+        
+        // Initialize Sparkle updater controller with custom delegate
+        // This will automatically check for updates based on Info.plist settings:
+        // - SUFeedURL: appcast feed URL
+        // - SUPublicEDKey: public key for signature verification
+        // - SUEnableAutomaticChecks: enable automatic update checks
+        // - SUScheduledCheckInterval: check interval in seconds (86400 = 24 hours)
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true, 
+            updaterDelegate: sparkleUpdateDelegate, 
+            userDriverDelegate: sparkleUpdateDelegate
+        )
+        
+        debugWindowController?.logEvent("✅ Sparkle auto-update initialized")
+        let feedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "Not configured"
+        let autoCheck = Bundle.main.object(forInfoDictionaryKey: "SUEnableAutomaticChecks") as? Bool ?? false
+        debugWindowController?.logEvent("   Feed URL: \(feedURL)")
+        debugWindowController?.logEvent("   Auto-check: \(autoCheck)")
+        
+        // Check and install ZendyKeyIM update if available
+        ZKInputMethodUpdateManager.shared.checkAndInstallUpdate()
+    }
+    
+    // MARK: - Spell Check Dictionary
+    
+    private func setupSpellCheckDictionary() {
+        guard ZKSharedSettings.shared.spellCheckEnabled else {
+            debugWindowController?.logEvent("📖 Spell check disabled - skipping dictionary load")
+            return
+        }
+        
+        let style: ZKDictionaryManager.DictionaryStyle = ZKSharedSettings.shared.modernStyle ? .newStyle : .oldStyle
+        
+        // Load dictionary from bundled resources
+        do {
+            try ZKDictionaryManager.shared.loadDictionary(style: style)
+            let stats = ZKDictionaryManager.shared.getDictionaryStats()
+            debugWindowController?.logEvent("📖 Loaded \(style.rawValue) dictionary: \(stats[style.rawValue] ?? 0) words")
+        } catch {
+            debugWindowController?.logEvent("❌ Failed to load dictionary: \(error)")
+        }
+    }
+    
+    // MARK: - Temp Off Toolbar
+    
+    private func setupTempOffToolbar() {
+        // Setup callback for state changes
+        ZKTempOffToolbarController.shared.onStateChange = { [weak self] (spellingTempOff: Bool, engineTempOff: Bool) in
+            // Update engine temp off state
+            self?.keyboardHandler?.engine.vTempOffSpelling = spellingTempOff ? 1 : 0
+            
+            // Update Vietnamese mode based on engine temp off
+            if engineTempOff {
+                self?.keyboardHandler?.setVietnamese(false)
+            } else {
+                self?.keyboardHandler?.setVietnamese(true)
+            }
+            
+            self?.debugWindowController?.logEvent("🔧 TempOff: spelling=\(spellingTempOff), engine=\(engineTempOff)")
+        }
+        
+        debugWindowController?.logEvent("  ✅ Temp off toolbar setup complete")
     }
     
     // MARK: - Input Source Observer (Auto-disable for non-Latin keyboards)
@@ -1317,7 +1389,7 @@ class ZKAppDelegate: NSObject, NSApplicationDelegate {
         // Start input source observer
         ZKInputSourceObserver.shared.start()
         
-        // Setup callbacks for "Other Language Mode" feature (OpenKey vOtherLanguage)
+        // Setup callbacks for "Other Language Mode" feature
         // These callbacks enable saving Vietnamese mode when switching to non-Latin keyboards
         // and restoring it when switching back to Latin keyboards
         ZKInputSourceObserver.shared.getCurrentVietnameseMode = { [weak self] in

@@ -202,11 +202,11 @@ class ZKEngineTests: XCTestCase {
         result = engine.processKey(character: "o", keyCode: 0, isUppercase: false)
         // a
         result = engine.processKey(character: "a", keyCode: 0, isUppercase: false)
-        // s (tone should go on 'a' - second vowel, following OpenKey modern orthography)
+        // s (tone should go on 'a' - second vowel, following modern orthography)
         result = engine.processKey(character: "s", keyCode: 0, isUppercase: false)
         
         let output = result.newCharacters.map { $0.toUnicode() }.joined()
-        XCTAssertEqual(output, "hoá", "Tone should be on second vowel (OpenKey modern orthography)")
+        XCTAssertEqual(output, "hoá", "Tone should be on second vowel (modern orthography)")
     }
     
     func testTonePlacement_HOAN_WithEndingConsonant() {
@@ -220,11 +220,11 @@ class ZKEngineTests: XCTestCase {
         result = engine.processKey(character: "a", keyCode: 0, isUppercase: false)
         // n (ending consonant)
         result = engine.processKey(character: "n", keyCode: 0, isUppercase: false)
-        // s (tone should STILL go on 'a' - OpenKey modern orthography always puts tone on 'a' in "oa")
+        // s (tone should STILL go on 'a' - modern orthography always puts tone on 'a' in "oa")
         result = engine.processKey(character: "s", keyCode: 0, isUppercase: false)
         
         let output = result.newCharacters.map { $0.toUnicode() }.joined()
-        XCTAssertEqual(output, "hoán", "Tone should be on 'a' even with ending consonant (OpenKey modern orthography)")
+        XCTAssertEqual(output, "hoán", "Tone should be on 'a' even with ending consonant (modern orthography)")
     }
     
     func testTonePlacement_KHOANG_MarkBeforeEndConsonant() {
@@ -246,7 +246,7 @@ class ZKEngineTests: XCTestCase {
         result = engine.processKey(character: "g", keyCode: 0, isUppercase: false)
         
         let output = result.newCharacters.map { $0.toUnicode() }.joined()
-        XCTAssertEqual(output, "khoảng", "Tone should be on 'a' in 'khoảng' (OpenKey modern orthography)")
+        XCTAssertEqual(output, "khoảng", "Tone should be on 'a' in 'khoảng' (modern orthography)")
     }
     
     // MARK: - Tone Placement Tests (UY Pattern)

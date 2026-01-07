@@ -278,7 +278,6 @@ struct ZKVowelSequenceValidator {
                 return 0
             }
             // Special case for "ua" sequence
-            // Rule from OpenKey Engine.cpp line 710-719:
             // - "qu" + "a" → vowel sequence is [.a] (single vowel), tone on 'a' ✓
             // - "c" + "ua" without ending consonant → tone on 'u' (position 0): của, mua
             // - "c" + "ua" with ending consonant → fall through to normal logic
@@ -291,7 +290,6 @@ struct ZKVowelSequenceValidator {
             }
 
             // Special case for "ia", "iu", "io", "ya" sequences
-            // Rule from OpenKey Engine.cpp line 699-709 and 688-695:
             // - If preceded by "gi" → tone on second vowel (position 1)
             // - Otherwise → tone on first vowel (position 0)
             if (vowels[0] == .i || vowels[0] == .y) &&

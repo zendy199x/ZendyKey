@@ -103,7 +103,7 @@ class ZKInputSourceManager {
 
         currentInputSource = newSource
 
-        // For ZendyKey/OpenKey itself - always enable Vietnamese
+        // For ZendyKey itself - always enable Vietnamese
         let shouldEnable: Bool
         if Self.isZendyKeyInputSource(newSource) {
             shouldEnable = true
@@ -202,7 +202,7 @@ class ZKInputSourceManager {
         // Remove duplicates and sort
         let uniqueSources = Array(Set(sources)).sorted { $0.displayName < $1.displayName }
 
-        // Filter out ZendyKey/OpenKey itself from the list
+        // Filter out ZendyKey itself from the list
         return uniqueSources.filter { !isZendyKeyInputSource($0) }
     }
 
@@ -223,7 +223,7 @@ class ZKInputSourceManager {
         return InputSourceInfo(id: id, name: name)
     }
 
-    /// Check if an input source is ZendyKey/OpenKey itself
+    /// Check if an input source is ZendyKey itself
     static func isZendyKeyInputSource(_ source: InputSourceInfo) -> Bool {
         let lowercaseID = source.id.lowercased()
         let lowercaseName = source.name.lowercased()
