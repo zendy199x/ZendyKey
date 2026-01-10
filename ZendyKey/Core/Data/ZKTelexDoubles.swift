@@ -5,8 +5,6 @@
 //  English words containing Telex patterns that should auto-restore.
 //  Uses Set for O(1) lookup.
 //
-//  Ported from gonhanh.org/core/src/data/telex_doubles.rs
-//
 
 import Foundation
 

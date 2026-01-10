@@ -6,8 +6,6 @@
 //  Uses merged dictionary: 10k common words + words with double telex chars.
 //  Only restores to English when raw_input is a known English word.
 //
-//  Ported from gonhanh.org/core/src/data/english_dict.rs
-//
 
 import Foundation
 

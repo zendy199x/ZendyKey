@@ -8,6 +8,7 @@
 
 import Foundation
 import AppKit
+import UserNotifications
 
 /// Manager for ZendyKeyIM auto-update functionality
 class ZKInputMethodUpdateManager {
@@ -212,14 +213,24 @@ class ZKInputMethodUpdateManager {
     
     /// Show notification to user about ZendyKeyIM update
     private func showUpdateNotification(version: String) {
-        let notification = NSUserNotification()
-        notification.title = "ZendyKeyIM đã được cập nhật"
-        notification.informativeText = "Phiên bản \(version) đã được cài đặt.\n\nVui lòng chuyển sang input method khác rồi quay lại ZendyKey để áp dụng."
-        notification.soundName = NSUserNotificationDefaultSoundName
+        let content = UNMutableNotificationContent()
+        content.title = "ZendyKeyIM đã được cập nhật"
+        content.body = "Phiên bản \(version) đã được cài đặt.\n\nVui lòng chuyển sang input method khác rồi quay lại ZendyKey để áp dụng."
+        content.sound = .default
         
-        NSUserNotificationCenter.default.deliver(notification)
+        let request = UNNotificationRequest(
+            identifier: "zendykey-im-update-\(version)",
+            content: content,
+            trigger: nil // Deliver immediately
+        )
         
-        logDebug("ZendyKeyIM: Update notification sent to user")
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                self.logDebug("ZendyKeyIM: Failed to show notification: \(error)")
+            } else {
+                self.logDebug("ZendyKeyIM: Update notification sent to user")
+            }
+        }
     }
     
     // MARK: - Auto-Update Check

@@ -3,7 +3,6 @@
 //  ZendyKey
 //
 //  Vietnamese word dictionary for spell checking and word detection.
-//  Contains 22k Vietnamese words/phrases from gonhanh.org test data.
 //
 
 import Foundation

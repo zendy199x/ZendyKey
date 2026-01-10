@@ -447,6 +447,14 @@ class ZKEngine {
             }
         }
         
+        // NEW: 5-Tier English Pattern Detection
+        // Check English patterns even without dictionary match
+        let rawStr = getRawInputString()
+        if ZKEnglishPatternDetector.isEnglish(rawStr) && isBufferInvalidVietnamese() {
+            logCallback?("isForeignWordPattern: English pattern detected (5-tier): \(rawStr)")
+            return true
+        }
+        
         return false
     }
     
@@ -476,6 +484,14 @@ class ZKEngine {
         if ZKVietnameseDictionary.shared.isVietnameseWord(bufferStr) {
             logCallback?("isBufferInvalidVietnamese: buffer '\(bufferStr)' is valid Vietnamese word")
             return false  // Valid Vietnamese word, not invalid
+        }
+        
+        // NEW: 9-Layer Vietnamese Validation
+        // Fast O(1) bitmask validation for syllable structure
+        let vnState = ZKVietnameseValidator.validate(bufferStr)
+        if vnState == .impossible {
+            logCallback?("isBufferInvalidVietnamese: 9-layer validator says impossible: '\(bufferStr)'")
+            return true  // Invalid Vietnamese syllable structure
         }
         
         // Check spelling via engine's built-in check

@@ -3,8 +3,6 @@
 //  ZendyKey
 //
 //  Telex input → Vietnamese output pairs for validation and testing.
-//  Contains 27k pairs from gonhanh.org test data.
-//  Format: "telex_input\texpected_output"
 //
 
 import Foundation

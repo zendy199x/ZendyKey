@@ -89,14 +89,9 @@ extension ZKSoundManager {
     @available(macOS 10.11, *)
     func performHaptic() {
         // Note: NSHapticFeedbackManager is available but limited on macOS
-        // This is a placeholder for future haptic support
-        #if os(macOS)
-        if #available(macOS 10.11, *) {
-            NSHapticFeedbackManager.defaultPerformer.perform(
-                .alignment,
-                performanceTime: .default
-            )
-        }
-        #endif
+        NSHapticFeedbackManager.defaultPerformer.perform(
+            .alignment,
+            performanceTime: .default
+        )
     }
 }

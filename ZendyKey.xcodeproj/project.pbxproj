@@ -139,6 +139,12 @@
 		GK012345678Y012345678923 /* ZKTelexPairs.txt in Resources */ = {isa = PBXBuildFile; fileRef = FG012345678Y012345678923 /* ZKTelexPairs.txt */; };
 		GL012345678Z012345678924 /* ZKEnglishDictMerged.txt in Resources */ = {isa = PBXBuildFile; fileRef = FH012345678Z012345678924 /* ZKEnglishDictMerged.txt */; };
 		GM01234567A0012345678925 /* ZKTelexDoubles.txt in Resources */ = {isa = PBXBuildFile; fileRef = FI01234567A0012345678925 /* ZKTelexDoubles.txt */; };
+		HN012345678A1012345678926 /* ZKEnglishPatternDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = HO012345678A1012345678926 /* ZKEnglishPatternDetector.swift */; };
+		HP012345678A1012345678927 /* ZKEnglishPatternDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = HO012345678A1012345678926 /* ZKEnglishPatternDetector.swift */; };
+		HQ012345678A2012345678928 /* ZKTonePlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR012345678A2012345678928 /* ZKTonePlacement.swift */; };
+		HS012345678A2012345678929 /* ZKTonePlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR012345678A2012345678928 /* ZKTonePlacement.swift */; };
+		HT012345678A3012345678930 /* ZKVietnameseValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = HU012345678A3012345678930 /* ZKVietnameseValidator.swift */; };
+		HV012345678A3012345678931 /* ZKVietnameseValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = HU012345678A3012345678930 /* ZKVietnameseValidator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -251,6 +257,9 @@
 		FG012345678Y012345678923 /* ZKTelexPairs.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ZKTelexPairs.txt; sourceTree = "<group>"; };
 		FH012345678Z012345678924 /* ZKEnglishDictMerged.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ZKEnglishDictMerged.txt; sourceTree = "<group>"; };
 		FI01234567A0012345678925 /* ZKTelexDoubles.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ZKTelexDoubles.txt; sourceTree = "<group>"; };
+		HO012345678A1012345678926 /* ZKEnglishPatternDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKEnglishPatternDetector.swift; sourceTree = "<group>"; };
+		HR012345678A2012345678928 /* ZKTonePlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKTonePlacement.swift; sourceTree = "<group>"; };
+		HU012345678A3012345678930 /* ZKVietnameseValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKVietnameseValidator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -445,6 +454,9 @@
 				A200001A /* ZKEngineSmartSwitch.swift */,
 				FF789012345J012345678904 /* ZKDictionaryManager.swift */,
 				FG890123456K012345678905 /* ZKEngineSpellCheck.swift */,
+				HO012345678A1012345678926 /* ZKEnglishPatternDetector.swift */,
+				HR012345678A2012345678928 /* ZKTonePlacement.swift */,
+				HU012345678A3012345678930 /* ZKVietnameseValidator.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -754,6 +766,9 @@
 				GC012345678T012345678915 /* ZKVietnameseDictionary.swift in Sources */,
 				GE012345678U012345678917 /* ZKTelexDoubles.swift in Sources */,
 				GG012345678V012345678919 /* ZKTelexPairs.swift in Sources */,
+				HN012345678A1012345678926 /* ZKEnglishPatternDetector.swift in Sources */,
+				HQ012345678A2012345678928 /* ZKTonePlacement.swift in Sources */,
+				HT012345678A3012345678930 /* ZKVietnameseValidator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -793,6 +808,9 @@
 				GD012345678T012345678916 /* ZKVietnameseDictionary.swift in Sources */,
 				GF012345678U012345678918 /* ZKTelexDoubles.swift in Sources */,
 				GH012345678V012345678920 /* ZKTelexPairs.swift in Sources */,
+				HP012345678A1012345678927 /* ZKEnglishPatternDetector.swift in Sources */,
+				HS012345678A2012345678929 /* ZKTonePlacement.swift in Sources */,
+				HV012345678A3012345678931 /* ZKVietnameseValidator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
