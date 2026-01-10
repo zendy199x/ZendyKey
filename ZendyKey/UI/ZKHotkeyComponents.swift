@@ -215,7 +215,7 @@ struct ZKPauseKeyConfigSection: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Bật tính năng tạm tắt")
+                        Text("Bật tính năng tạm tắt gõ tiếng Việt")
                             .font(ZKTypography.body)
                             .foregroundColor(ZKColors.textPrimary)
 
@@ -237,7 +237,7 @@ struct ZKPauseKeyConfigSection: View {
 
                     // Key Selection
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Chọn phím tạm tắt")
+                        Text("Chọn phím tạm tắt gõ tiếng Việt")
                             .font(ZKTypography.caption.bold())
                             .foregroundColor(ZKColors.textPrimary)
 
@@ -256,13 +256,6 @@ struct ZKPauseKeyConfigSection: View {
                                 selectedKeyCode: $viewModel.preferences.pauseKey,
                                 selectedKeyName: $viewModel.preferences.pauseKeyName
                             )
-                            ZKPauseKeyButton(
-                                symbol: "⌘",
-                                name: "Cmd",
-                                keyCode: 55,
-                                selectedKeyCode: $viewModel.preferences.pauseKey,
-                                selectedKeyName: $viewModel.preferences.pauseKeyName
-                            )
                         }
 
                         Text("Mặc định: Control (⌃). Ví dụ: giữ ⌃ gõ \"email\" → thả ⌃")
@@ -278,6 +271,12 @@ struct ZKPauseKeyConfigSection: View {
                 }
             }
             .animation(ZKAnimations.spring, value: viewModel.preferences.pauseKeyEnabled)
+            .onChange(of: viewModel.preferences.pauseKeyEnabled) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
+            .onChange(of: viewModel.preferences.pauseKey) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
         }
     }
 }
@@ -383,6 +382,12 @@ struct ZKRestoreKeyConfigSection: View {
                 }
             }
             .animation(ZKAnimations.spring, value: viewModel.preferences.restoreOnEscape)
+            .onChange(of: viewModel.preferences.restoreOnEscape) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
+            .onChange(of: viewModel.preferences.restoreKey) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
         }
     }
 }
@@ -553,12 +558,6 @@ struct ZKTempOffSpellingConfigSection: View {
                                 keyCode: 58,
                                 selectedKeyCode: $viewModel.preferences.tempOffSpellingKey
                             )
-                            ZKTempOffSpellingKeyButton(
-                                symbol: "⌘",
-                                name: "Cmd",
-                                keyCode: 55,
-                                selectedKeyCode: $viewModel.preferences.tempOffSpellingKey
-                            )
                         }
 
                         Text("Mặc định: Option (⌥). Ví dụ: giữ ⌥ gõ \"tooi\" → không chuyển thành \"tôi\"")
@@ -574,6 +573,12 @@ struct ZKTempOffSpellingConfigSection: View {
                 }
             }
             .animation(ZKAnimations.spring, value: viewModel.preferences.tempOffSpellingEnabled)
+            .onChange(of: viewModel.preferences.tempOffSpellingEnabled) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
+            .onChange(of: viewModel.preferences.tempOffSpellingKey) { _ in
+                viewModel.userDidInteractWithHotkeySection()
+            }
         }
     }
 }

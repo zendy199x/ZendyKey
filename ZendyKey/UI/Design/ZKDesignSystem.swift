@@ -38,8 +38,8 @@ class AppearanceManager: ObservableObject {
     }
     
     private init() {
-        let savedMode = UserDefaults.standard.string(forKey: "appAppearanceMode") ?? AppearanceMode.system.rawValue
-        self.currentMode = AppearanceMode(rawValue: savedMode) ?? .system
+        let savedMode = UserDefaults.standard.string(forKey: "appAppearanceMode") ?? AppearanceMode.dark.rawValue
+        self.currentMode = AppearanceMode(rawValue: savedMode) ?? .dark
     }
     
     func applyAppearance() {
@@ -57,15 +57,36 @@ class AppearanceManager: ObservableObject {
                 appearance = NSAppearance(named: .aqua)
             }
             
-            // Apply to app level first (for new windows)
-            NSApp.appearance = appearance
-            
-            // Force update ALL windows including current one
-            for window in NSApp.windows {
-                window.appearance = appearance
-                window.invalidateShadow()
-                window.contentView?.needsDisplay = true
-                window.contentView?.needsLayout = true
+            // Smooth transition with fade animation
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.35
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1)  // easeInOut
+                context.allowsImplicitAnimation = true
+                
+                // Apply to app level first (for new windows)
+                NSApp.appearance = appearance
+                
+                // Force update ALL windows with animation
+                for window in NSApp.windows {
+                    window.appearance = appearance
+                    
+                    // Animate window content
+                    if let contentView = window.contentView {
+                        contentView.animator().alphaValue = 0.95
+                    }
+                }
+            } completionHandler: {
+                // Restore full opacity after transition
+                for window in NSApp.windows {
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0.15
+                        context.allowsImplicitAnimation = true
+                        window.contentView?.animator().alphaValue = 1.0
+                    }
+                    window.invalidateShadow()
+                    window.contentView?.needsDisplay = true
+                    window.contentView?.needsLayout = true
+                }
             }
             
             // Post notification for any SwiftUI views that need to react
@@ -223,26 +244,46 @@ struct AdaptiveGlassCard<Content: View>: View {
 
 struct AppearancePickerView: View {
     @ObservedObject var appearanceManager = AppearanceManager.shared
+    @Namespace private var animation
     
     var body: some View {
-        HStack(spacing: 12) {
-            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+        HStack(spacing: 0) {
+            ForEach(Array(AppearanceMode.allCases.enumerated()), id: \.element) { index, mode in
                 AppearanceModeButton(
                     mode: mode,
-                    isSelected: appearanceManager.currentMode == mode
+                    isSelected: appearanceManager.currentMode == mode,
+                    namespace: animation
                 ) {
-                    withAnimation(ZKAnimations.spring) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         appearanceManager.currentMode = mode
                     }
                 }
+                
+                // Add vertical divider between buttons (not at the end)
+                if index < AppearanceMode.allCases.count - 1 {
+                    Rectangle()
+                        .fill(ZKColors.glassBorder)
+                        .frame(width: 1)
+                        .padding(.vertical, 8)
+                }
             }
         }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(ZKColors.glassBackground.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ZKColors.glassBorder, lineWidth: 1)
+        )
     }
 }
 
 struct AppearanceModeButton: View {
     let mode: AppearanceMode
     let isSelected: Bool
+    var namespace: Namespace.ID
     let action: () -> Void
     
     @State private var isHovered = false
@@ -259,26 +300,31 @@ struct AppearanceModeButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: iconName)
-                    .font(.system(size: 18))
-                    .foregroundStyle(isSelected ? ZKColors.accentGradient : LinearGradient(colors: [Color.secondary], startPoint: .top, endPoint: .bottom))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
                 
                 Text(mode.rawValue)
-                    .font(ZKTypography.caption)
-                    .foregroundColor(isSelected ? ZKColors.textPrimary : ZKColors.textSecondary)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? .white : (isHovered ? ZKColors.textPrimary : ZKColors.textSecondary))
             }
-            .frame(width: 60, height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? ZKColors.accent.opacity(0.15) : (isHovered ? ZKColors.glassBackground : Color.clear))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? ZKColors.accent.opacity(0.4) : Color.clear, lineWidth: 1.5)
-            )
+            .frame(width: 72, height: 64)
+            .background {
+                if isSelected {
+                    ZKColors.accentGradient
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .matchedGeometryEffect(id: "AppearanceIndicator", in: namespace)
+                        .shadow(color: ZKColors.accent.opacity(0.3), radius: 8, x: 0, y: 2)
+                } else if isHovered {
+                    Color.white.opacity(0.08)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            .scaleEffect(isHovered && !isSelected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(ZKAnimations.easeOut) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
         }

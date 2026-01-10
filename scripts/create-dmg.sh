@@ -3,7 +3,6 @@
 # ZendyKey DMG Creator
 # =============================================================================
 # Create beautiful DMG installer for ZendyKey with custom layout
-# Similar to GoNhanh's professional DMG style
 #
 # Usage:
 #   ./create-dmg.sh                              # Use default app path

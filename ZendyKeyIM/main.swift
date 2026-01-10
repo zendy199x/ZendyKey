@@ -9,13 +9,6 @@
 import Cocoa
 import InputMethodKit
 
-// MARK: - Notification Names (shared with ZendyKey app)
-
-extension Notification.Name {
-    /// Posted when settings change (distributed, cross-app)
-    static let ZendyKeySettingsDidChange = Notification.Name("ZendyKey.settingsDidChange")
-}
-
 // MARK: - App Delegate
 
 class ZKIMMainZKAppDelegate: NSObject, NSApplicationDelegate {

@@ -78,11 +78,11 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 
 | Gõ | macOS Telex | ZendyKey |
 |:---|:------------|:---------|
-| `text ` | `têt ` ❌ | `text ` ✅ |
-| `expect ` | `ễpct ` ❌ | `expect ` ✅ |
-| `window ` | `ưindow ` ❌ | `window ` ✅ |
-| `user ` | `úẻ ` ❌ | `user ` ✅ |
-| `file ` | `file ` ✅ | `file ` ✅ |
+| `text` | `têt` ❌ | `text` ✅ |
+| `expect` | `ễpct` ❌ | `expect` ✅ |
+| `window` | `ưindow` ❌ | `window` ✅ |
+| `user` | `úẻ` ❌ | `user` ✅ |
+| `file` | `file` ✅ | `file` ✅ |
 
 ### ✅ Patterns được nhận diện
 
@@ -95,7 +95,7 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 
 ---
 
-## 🎯 So sánh
+<!-- ## 🎯 So sánh
 
 | Tính năng | ZendyKey | OpenKey | GoNhanh |
 |-----------|:--------:|:-------:|:-------:|
@@ -112,7 +112,7 @@ Khi gõ tiếng Anh bằng Telex, một số chữ cái bị nhận nhầm thàn
 | **Pause Key** | ✅ | ❌ | ❌ |
 | **Smart Switch** | ✅ | ❌ | ✅ |
 
----
+--- -->
 
 ## ⌨️ Phím tắt
 
@@ -225,14 +225,6 @@ make dmg
 ## 🤝 Đóng góp
 
 Chúng tôi luôn chào đón contribution! Xem [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## 🙏 Credits
-
-ZendyKey được phát triển dựa trên:
-- **OpenKey** — Bộ gõ tiếng Việt mã nguồn mở
-- **GoNhanh** — Nguồn cảm hứng cho nhiều tính năng
 
 ---
 

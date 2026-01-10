@@ -18,19 +18,19 @@ class ZKSoundManager {
         set { ZKSharedSettings.shared.beepOnToggle = newValue }
     }
     
-    // Volume control (0.0 to 1.0)
-    var volume: Float = 0.5
+    // Volume control - reads from preferences
+    var volume: Float {
+        Float(ZKSharedSettings.shared.beepVolume)
+    }
     
-    // System sounds
+    // System sounds - cached to prevent issues with rapid toggling
     private let toggleOnSound = NSSound(named: "Pop")
     private let toggleOffSound = NSSound(named: "Tink")
     private let typeClickSound = NSSound(named: "Morse")
+    private var currentSound: NSSound?
     
     private init() {
-        // Set default volume for all sounds
-        toggleOnSound?.volume = volume
-        toggleOffSound?.volume = volume
-        typeClickSound?.volume = volume * 0.3 // Type clicks should be quieter
+        // Volume is now dynamically read from preferences
     }
     
     // MARK: - Public Methods
@@ -39,12 +39,16 @@ class ZKSoundManager {
     func playToggleSound(enabled: Bool) {
         guard isSoundEnabled else { return }
         
-        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
-            if enabled {
-                self?.toggleOnSound?.play()
-            } else {
-                self?.toggleOffSound?.play()
-            }
+        // Stop any currently playing sound to handle rapid toggling
+        currentSound?.stop()
+        
+        let currentVolume = volume
+        let sound = enabled ? toggleOnSound : toggleOffSound
+        currentSound = sound
+        
+        DispatchQueue.global(qos: .userInteractive).async {
+            sound?.volume = currentVolume
+            sound?.play()
         }
     }
     
@@ -52,7 +56,9 @@ class ZKSoundManager {
     func playTypeClick() {
         guard isSoundEnabled else { return }
         
+        let currentVolume = volume * 0.3  // Type clicks should be quieter
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            self?.typeClickSound?.volume = currentVolume
             self?.typeClickSound?.play()
         }
     }
@@ -73,14 +79,6 @@ class ZKSoundManager {
         DispatchQueue.global(qos: .userInteractive).async {
             NSSound.beep()
         }
-    }
-    
-    /// Update volume for all sounds
-    func setVolume(_ newVolume: Float) {
-        volume = max(0.0, min(1.0, newVolume))
-        toggleOnSound?.volume = volume
-        toggleOffSound?.volume = volume
-        typeClickSound?.volume = volume * 0.3
     }
 }
 

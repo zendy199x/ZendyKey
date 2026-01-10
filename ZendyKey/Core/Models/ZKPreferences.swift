@@ -85,7 +85,7 @@ struct Preferences: Codable {
     var codeTableHotkey: Hotkey? = nil    // Optional: Hotkey to switch code table
     var beepOnToggle: Bool = false               // Play beep sound when toggle Vietnamese
     var beepVolume: Double = 0.5                 // Beep volume (0.0 to 1.0)
-    var showOnScreenIndicator: Bool = true       // Show floating indicator when toggle mode
+    var showOnScreenIndicator: Bool = true       // Show floating popup when switching via hotkey
     
     // Input settings
     var inputMethod: InputMethod = .telex
@@ -110,8 +110,8 @@ struct Preferences: Codable {
     var skipWShortcut: Bool = false              // Skip w→ư conversion in Telex (keep 'w' as 'w')
     var freeToneEnabled: Bool = false            // Free tone placement without validation
     var perAppModeEnabled: Bool = false          // Remember language mode per application
-    var rememberCodeTablePerApp: Bool = true     // Remember code table per app (OpenKey vRememberCode)
-    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard (OpenKey vOtherLanguage)
+    var rememberCodeTablePerApp: Bool = true     // Remember code table per app
+    var preserveVietnameseModeWithOtherLanguage: Bool = true  // Preserve Vietnamese when using non-Latin keyboard
     
     // Restore key configuration
     var restoreOnEscape: Bool = true             // Enable restore to raw keys

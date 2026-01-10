@@ -210,10 +210,10 @@ struct ZKOnboardingView: View {
         // Mark onboarding as completed
         markOnboardingCompleted()
         
-        // Post notification for observers (like GoNhanh pattern)
+        // Post notification for observers
         NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
         
-        // Close window simply - like GoNhanh
+        // Close window simply
         NSApp.keyWindow?.close()
     }
 }

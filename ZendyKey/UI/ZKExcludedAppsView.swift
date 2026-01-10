@@ -25,20 +25,12 @@ struct ExcludedAppsSettingsSection: View {
                             .foregroundColor(ZKColors.textSecondary)
                         
                         HStack(spacing: 12) {
-                            Button(action: { showAppPicker = true }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "plus.app")
-                                        .font(.system(size: 12, weight: .medium))
-                                    Text("Thêm ứng dụng")
-                                        .font(ZKTypography.caption)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(ZKColors.accentGradient)
-                                .cornerRadius(8)
+                            ZKGradientButton.primary(
+                                title: "Thêm ứng dụng",
+                                icon: "plus.app"
+                            ) {
+                                showAppPicker = true
                             }
-                            .buttonStyle(.plain)
                             
                             Spacer()
                             

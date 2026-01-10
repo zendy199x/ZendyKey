@@ -54,12 +54,6 @@ class ZKStatusBarViewModel: ObservableObject {
         // Play toggle sound via SoundManager
         ZKSoundManager.shared.playToggleSound(enabled: isVietnameseEnabled)
         
-        // Show on-screen indicator if enabled
-        let prefs = ZKSharedSettings.shared.loadPreferences()
-        if prefs.showOnScreenIndicator {
-            ZKOnScreenIndicatorController.shared.show(isVietnamese: isVietnameseEnabled)
-        }
-        
         // Notify Settings panel to update toggle with animation
         NotificationCenter.default.post(
             name: .vietnameseModeDidChange,
@@ -77,12 +71,6 @@ class ZKStatusBarViewModel: ObservableObject {
         isVietnameseEnabled = enabled
         keyboardHandler?.setVietnamese(enabled)
         log("🔄 Vietnamese set to: \(enabled ? "ON" : "OFF")")
-        
-        // Show on-screen indicator if enabled
-        let prefs = ZKSharedSettings.shared.loadPreferences()
-        if prefs.showOnScreenIndicator {
-            ZKOnScreenIndicatorController.shared.show(isVietnamese: enabled)
-        }
         
         // Notify Settings panel to update toggle with animation
         NotificationCenter.default.post(
@@ -164,7 +152,7 @@ class ZKStatusBarViewModel: ObservableObject {
         // Notify Settings panel to update with animation
         NotificationCenter.default.post(name: .ZendyKeySettingsDidChange, object: nil)
         
-        // Save code table for current app (Remember Code Table Per App - OpenKey vRememberCode)
+        // Save code table for current app (Remember Code Table Per App)
         saveCodeTableForCurrentApp()
         
         log("✅ CodeTable set to \(table.displayName)")

@@ -40,10 +40,10 @@ struct ZKPreferencesView: View {
                     }
                     .tag(0)
                 
-                // Tab 1: Cơ bản
+                // Tab 1: Gõ phím
                 BasicSettingsTab(viewModel: viewModel)
                     .tabItem {
-                        Label("Cơ bản", systemImage: "gearshape")
+                        Label("Gõ phím", systemImage: "keyboard")
                     }
                     .tag(1)
                 
