@@ -177,6 +177,10 @@ struct WindowTitleRule: Codable, Identifiable {
     /// When enabled, ZendyKey will automatically disable Vietnamese typing when this rule matches
     let disableVietnameseInput: Bool?
     
+    /// Override: Enable Force Accessibility (AXManualAccessibility) for Electron/Chromium apps
+    /// This helps retrieve more detailed text info from web-based apps like VS Code, Slack, Discord
+    let forceAccessibilityEnabled: Bool?
+    
     /// Description for debugging
     let description: String?
     
@@ -227,7 +231,7 @@ struct WindowTitleRule: Codable, Identifiable {
         case id, name, bundleIdPattern, titlePattern, matchMode, isEnabled
         case useMarkedText, hasMarkedTextIssues, commitDelay
         case injectionMethod, injectionDelays, textSendingMethod
-        case disableVietnameseInput, description
+        case disableVietnameseInput, forceAccessibilityEnabled, description
     }
     
     init(from decoder: Decoder) throws {
@@ -244,6 +248,7 @@ struct WindowTitleRule: Codable, Identifiable {
         injectionDelays = try container.decodeIfPresent([UInt32].self, forKey: .injectionDelays)
         textSendingMethod = try container.decodeIfPresent(TextSendingMethod.self, forKey: .textSendingMethod)
         disableVietnameseInput = try container.decodeIfPresent(Bool.self, forKey: .disableVietnameseInput)
+        forceAccessibilityEnabled = try container.decodeIfPresent(Bool.self, forKey: .forceAccessibilityEnabled)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         
         // Decode injection method from string
@@ -274,6 +279,7 @@ struct WindowTitleRule: Codable, Identifiable {
         try container.encodeIfPresent(injectionDelays, forKey: .injectionDelays)
         try container.encodeIfPresent(textSendingMethod, forKey: .textSendingMethod)
         try container.encodeIfPresent(disableVietnameseInput, forKey: .disableVietnameseInput)
+        try container.encodeIfPresent(forceAccessibilityEnabled, forKey: .forceAccessibilityEnabled)
         try container.encodeIfPresent(description, forKey: .description)
         
         // Encode injection method as string
@@ -304,6 +310,7 @@ struct WindowTitleRule: Codable, Identifiable {
         injectionDelays: [UInt32]? = nil,
         textSendingMethod: TextSendingMethod? = nil,
         disableVietnameseInput: Bool? = nil,
+        forceAccessibilityEnabled: Bool? = nil,
         description: String? = nil
     ) {
         self.id = UUID()
@@ -319,6 +326,7 @@ struct WindowTitleRule: Codable, Identifiable {
         self.injectionDelays = injectionDelays
         self.textSendingMethod = textSendingMethod
         self.disableVietnameseInput = disableVietnameseInput
+        self.forceAccessibilityEnabled = forceAccessibilityEnabled
         self.description = description
     }
 }
@@ -498,6 +506,7 @@ class AppBehaviorDetector {
         "com.google.Chrome",
         "com.google.Chrome.canary",
         "com.google.Chrome.beta",
+        "com.google.Chrome.dev",
         "org.chromium.Chromium",
         "com.brave.Browser",
         "com.brave.Browser.beta",
@@ -514,6 +523,8 @@ class AppBehaviorDetector {
         "com.operasoftware.Opera",
         "com.operasoftware.OperaGX",
         "com.operasoftware.OperaAir",
+        "com.operasoftware.OperaOne",
+        "com.operasoftware.OperaCrypto",
         "com.opera.OperaNext",
         // Firefox-based
         "org.mozilla.firefox",
@@ -538,8 +549,54 @@ class AppBehaviorDetector {
         "com.pushplaylabs.sidekick",
         "com.firstversionist.polypane",
         "ai.perplexity.comet",
-        "com.duckduckgo.macos.browser"
+        "com.duckduckgo.macos.browser",
+        // Regional
+        "com.nicholasb.niceplayer",  // Cốc Cốc
+        "com.nicholasb.niceplayer2",
+        "com.nicholasb.niceplayer-mas",
+        "com.nicholasb.niceplayer-dmg",
+        "com.nicholasb.nicepro",
+        "kr.co.naver.Naver-Whale",
+        // Modern browsers
+        "com.nicholasb.wavebox",
+        "com.nicholasb.wavebox6",
+        "app.nicholasb.mighty",
+        "com.nicholasb.sizzy"
     ]
+    
+    /// Electron-based apps (use Chromium text input system)
+    static let electronApps: Set<String> = [
+        // Communication
+        "com.tinyspeck.slackmacgap",  // Slack
+        "com.hnc.Discord",             // Discord
+        "com.microsoft.teams",         // Microsoft Teams
+        "com.microsoft.teams2",
+        // Development
+        "com.microsoft.VSCode",
+        "com.microsoft.VSCodeInsiders",
+        "com.vscodium.codium",
+        "com.todesktop.230313mzl4w4u92",  // Cursor
+        "com.github.GitHubClient",        // GitHub Desktop
+        "dev.zed.Zed",                    // Zed Editor
+        // Design
+        "com.figma.Desktop",           // Figma
+        // Productivity
+        "notion.id",                   // Notion
+        "com.linear.Linear",           // Linear
+        "md.obsidian",                 // Obsidian
+        "com.logseq.logseq",           // Logseq
+        "com.clickup.desktop-app",     // ClickUp
+        // Other
+        "com.postmanlabs.mac",         // Postman
+        "com.insomnia.app",            // Insomnia
+        "com.bitwarden.desktop",       // Bitwarden
+        "com.1password.1password"      // 1Password (partially Electron)
+    ]
+    
+    /// Check if bundle ID is a Chromium-based browser or Electron app
+    static func isChromiumBasedApp(_ bundleId: String) -> Bool {
+        return browserApps.contains(bundleId) || electronApps.contains(bundleId)
+    }
     
     /// Code editors (Electron-based or native)
     static let codeEditors: Set<String> = [
@@ -757,6 +814,18 @@ class AppBehaviorDetector {
     
     func clearPreRuleVietnameseState() {
         preRuleVietnameseState = nil
+    }
+    
+    // MARK: - Force Accessibility Override
+    
+    /// Get Force Accessibility override for current context
+    /// Returns: (shouldEnable: Bool, ruleName: String?)
+    func getForceAccessibilityOverride() -> (shouldEnable: Bool, ruleName: String?) {
+        // Check Window Title Rules
+        if let rule = findMatchingRule(), let enabled = rule.forceAccessibilityEnabled {
+            return (enabled, rule.name)
+        }
+        return (false, nil)
     }
     
     // MARK: - Window Title Detection

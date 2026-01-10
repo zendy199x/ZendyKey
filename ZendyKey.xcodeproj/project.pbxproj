@@ -10,6 +10,8 @@
 		045D4A6B9D2615015828439D /* ZKOnScreenIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7854C5D554EE8E5CA743032 /* ZKOnScreenIndicator.swift */; };
 		074DA51D903804F6A315D3F8 /* ZKInputProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007 /* ZKInputProcessor.swift */; };
 		0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */; };
+		HW01234567C0012345678932 /* ZKForceAccessibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = HX01234567C0012345678932 /* ZKForceAccessibilityManager.swift */; };
+		HY01234567C0012345678933 /* ZKForceAccessibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = HX01234567C0012345678932 /* ZKForceAccessibilityManager.swift */; };
 		1097C5E52EF6662500969052 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1097C5E42EF6662500969052 /* Sparkle */; };
 		1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C15B8BA17BCA383BD97404 /* ZKTextInjector.swift */; };
 		1904D0E647EF2BD79E2D7112 /* ZKEngineSpellCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = FG890123456K012345678905 /* ZKEngineSpellCheck.swift */; };
@@ -161,6 +163,7 @@
 		6C8FF141363D85D6B2EA7F88 /* ZendyKeyIM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZendyKeyIM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EBB1616C92FAA0CC49E062F /* ZKIMController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ZKIMController.swift; path = ZendyKeyIM/ZKIMController.swift; sourceTree = "<group>"; };
 		91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZKSoundManager.swift; sourceTree = "<group>"; };
+		HX01234567C0012345678932 /* ZKForceAccessibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZKForceAccessibilityManager.swift; sourceTree = "<group>"; };
 		A0000001 /* ZendyKey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZendyKey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0BFB2281DF67223E663B1A5 /* ZKIMKitDebugger.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ZKIMKitDebugger.swift; path = ZendyKeyIM/ZKIMKitDebugger.swift; sourceTree = "<group>"; };
 		A2000001 /* ZendyKeyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZendyKeyApp.swift; sourceTree = "<group>"; };
@@ -419,6 +422,7 @@
 				A200001F /* ZKLaunchAtLogin.swift */,
 				A200001E /* ZKAppVersion.swift */,
 				91D48116A01DD8AC416C6C88 /* ZKSoundManager.swift */,
+				HX01234567C0012345678932 /* ZKForceAccessibilityManager.swift */,
 				C22B5E1FA2994AC25EF02CA2 /* ZKInputSourceObserver.swift */,
 			);
 			path = Utilities;
@@ -733,6 +737,7 @@
 				0E96C94B43BA4D6152F16258 /* ZKSoundManager.swift in Sources */,
 				40A8CEE8FB017E06850E1796 /* ZKUpdateBadgeView.swift in Sources */,
 				52817B15CE79AAC1C3BAAACF /* ZKInputSourceObserver.swift in Sources */,
+				HW01234567C0012345678932 /* ZKForceAccessibilityManager.swift in Sources */,
 				9F7283F34B683E0C1FCF5E93 /* ZKUIComponents.swift in Sources */,
 				1197B207E441384F78711A71 /* ZKTextInjector.swift in Sources */,
 				C91E4BE97BB732C240306BA2 /* ZKMenuBarHeaderView.swift in Sources */,
